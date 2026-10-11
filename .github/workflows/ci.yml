@@ -13,7 +13,7 @@ jobs:
           node-version: '22'
       # After generating and committing package-lock.json, switch install to `npm ci`.
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Unit pricing checks
         run: npm run test:pricing
       - name: Typecheck
