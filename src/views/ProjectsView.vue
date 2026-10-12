@@ -3,6 +3,7 @@ import { reactive, ref } from 'vue'
 import { ArrowRight, FolderKanban, Plus, Trash2 } from 'lucide-vue-next'
 import { state, addProject, persistenceError, removeItem } from '../lib/store'
 import { brl, dateBR, projectLabels, todayLocal } from '../lib/format'
+import { serviceSuggestion } from '../lib/pricing'
 import type { ProjectStatus } from '../lib/types'
 
 const emit = defineEmits<{ openProject: [id: string, notice?: string] }>()
@@ -12,6 +13,10 @@ const error = ref('')
 const feedback = ref('')
 const form = reactive({ name: '', client: '', serviceId: '', status: 'planejado' as ProjectStatus, deadline: todayLocal(), value: 0 })
 function create() { Object.assign(form, { name: '', client: '', serviceId: '', status: 'planejado', deadline: todayLocal(), value: 0 }); error.value = ''; feedback.value = ''; showForm.value = true }
+function selectService() {
+  const service = state.services.find(item => item.id === form.serviceId)
+  if (service) form.value = serviceSuggestion(service)
+}
 function submit() {
   error.value = ''
   if (!form.name.trim() || !form.client.trim()) { error.value = 'Informe o nome do projeto e o cliente.'; return }
@@ -23,7 +28,7 @@ function submit() {
     emit('openProject', project.id, feedback.value)
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'Não foi possível salvar o projeto.' }
 }
-function drop(id: string) { if (confirm('Excluir este projeto? Tarefas e lançamentos serão preservados e ficarão sem projeto.')) removeItem('projects', id) }
+function drop(id: string) { if (confirm('Excluir este projeto? Tarefas e lançamentos serão preservados sem vínculo; o briefing e as respostas deste projeto serão removidos.')) removeItem('projects', id) }
 function announceStatus() { feedback.value = persistenceError.value || 'Status atualizado.' }
 </script>
 
@@ -38,8 +43,8 @@ function announceStatus() { feedback.value = persistenceError.value || 'Status a
     </div>
     <Teleport to="body"><div v-if="showForm" class="modal-backdrop" @click.self="showForm = false"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="project-title"><div class="modal-head"><h2 id="project-title">Novo projeto</h2><button class="icon-button" aria-label="Fechar" @click="showForm = false">✕</button></div>
       <form @submit.prevent="submit"><div class="field"><label for="p-name">Nome do projeto *</label><input id="p-name" v-model="form.name" required maxlength="140" autofocus/></div><div class="field"><label for="p-client">Cliente *</label><input id="p-client" v-model="form.client" required maxlength="120"/></div>
-        <div class="field"><label for="p-service">Serviço vinculado</label><select id="p-service" v-model="form.serviceId"><option value="">Sem vínculo de serviço</option><option v-for="service in state.services" :key="service.id" :value="service.id">{{ service.name }}</option></select></div>
-        <div class="form-row"><div class="field"><label for="p-deadline">Prazo previsto</label><input id="p-deadline" v-model="form.deadline" type="date" required/></div><div class="field"><label for="p-value">Preço combinado (R$)</label><input id="p-value" v-model.number="form.value" type="number" min="0" step="0.01" required/></div></div>
+        <div class="field"><label for="p-service">Serviço e modelo reutilizável</label><select id="p-service" v-model="form.serviceId" @change="selectService"><option value="">Sem vínculo de serviço</option><option v-for="service in state.services" :key="service.id" :value="service.id">{{ service.name }}</option></select><small>O projeto recebe as tarefas e o questionário deste modelo. Os dados serão copiados para o projeto.</small></div>
+        <div class="form-row"><div class="field"><label for="p-deadline">Prazo previsto</label><input id="p-deadline" v-model="form.deadline" type="date" required/></div><div class="field"><label for="p-value">Preço combinado (sugestão do serviço)</label><input id="p-value" v-model.number="form.value" type="number" min="0" step="0.01" required/></div></div>
         <div class="field"><label for="p-status">Status inicial</label><select id="p-status" v-model="form.status"><option v-for="status in statuses" :key="status" :value="status">{{ projectLabels[status] }}</option></select></div>
         <p class="form-hint">Preço combinado é independente da estimativa comercial e de recebimentos registrados.</p><p v-if="error" class="form-error" role="alert">{{ error }}</p>
         <div class="modal-actions"><button type="button" class="btn btn-outline" @click="showForm = false">Cancelar</button><button class="btn btn-dark" type="submit">Salvar projeto</button></div>

@@ -3,6 +3,7 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ArrowRight, FolderKanban, MessageCircle, Pencil, Plus, Search, Trash2, UsersRound } from 'lucide-vue-next'
 import { state, addLead, convertLeadToProject, persistenceError, removeItem, updateLead } from '../lib/store'
 import { brl, leadLabels, todayLocal, whatsappHref } from '../lib/format'
+import { serviceSuggestion } from '../lib/pricing'
 import type { Lead, LeadStage, ProjectStatus } from '../lib/types'
 
 const props = defineProps<{ focusLeadId?: string | null }>()
@@ -17,6 +18,12 @@ const error = ref('')
 const feedback = ref('')
 const form = reactive({ name: '', contact: '', service: '', serviceId: '', stage: 'novo' as LeadStage, value: 0, notes: '' })
 const conversion = reactive({ name: '', client: '', status: 'planejado' as ProjectStatus, deadline: todayLocal(), value: 0 })
+const conversionService = computed(() => {
+  const lead = convertingLead.value
+  if (!lead) return null
+  return state.services.find(service => service.id === lead.serviceId) ??
+    state.services.find(service => service.name.trim().toLocaleLowerCase('pt-BR') === lead.service.trim().toLocaleLowerCase('pt-BR')) ?? null
+})
 const filtered = computed(() => state.leads.filter(lead => `${lead.name} ${lead.service}`.toLocaleLowerCase().includes(search.value.toLocaleLowerCase())))
 
 function resetForm() {
@@ -51,7 +58,8 @@ function submit() {
 function beginConversion(lead: Lead) {
   if (lead.convertedProjectId) { emit('openProject', lead.convertedProjectId); return }
   convertingLead.value = lead
-  Object.assign(conversion, { name: `${lead.service} — ${lead.name}`, client: lead.name, status: 'planejado', deadline: todayLocal(), value: 0 })
+  const service = state.services.find(item => item.id === lead.serviceId) ?? state.services.find(item => item.name.trim().toLocaleLowerCase('pt-BR') === lead.service.trim().toLocaleLowerCase('pt-BR'))
+  Object.assign(conversion, { name: `${lead.service} — ${lead.name}`, client: lead.name, status: 'planejado', deadline: todayLocal(), value: service ? serviceSuggestion(service) : 0 })
   error.value = ''
   feedback.value = ''
   showConversion.value = true
@@ -122,10 +130,11 @@ watch(() => props.focusLeadId, jumpToLead, { immediate: true })
     </div></div></Teleport>
 
     <Teleport to="body"><div v-if="showConversion && convertingLead" class="modal-backdrop" @click.self="showConversion = false"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="convert-title"><div class="modal-head"><h2 id="convert-title">Converter em projeto</h2><button class="icon-button" aria-label="Fechar" @click="showConversion = false">✕</button></div>
-      <form @submit.prevent="submitConversion"><div class="notice-box subtle-notice"><div><b>Estimativa da oportunidade: {{ brl(convertingLead.value) }}</b><p>Informe o preço combinado separadamente. A estimativa não será copiada para o projeto nem lançada no financeiro.</p></div></div>
+      <form @submit.prevent="submitConversion"><div class="notice-box subtle-notice"><div><b>Estimativa do pipeline: {{ brl(convertingLead.value) }}</b><p>O preço sugerido vem do serviço e precisa ser confirmado. A estimativa fica na oportunidade; a conversão não registra recebimento nem despesa.</p></div></div>
         <div class="field"><label for="c-name">Nome do projeto *</label><input id="c-name" v-model="conversion.name" maxlength="140" required autofocus/></div>
         <div class="field"><label for="c-client">Cliente *</label><input id="c-client" v-model="conversion.client" maxlength="120" required/></div>
-        <div class="form-row"><div class="field"><label for="c-value">Preço combinado (R$)</label><input id="c-value" v-model.number="conversion.value" type="number" min="0" step="0.01" required/></div><div class="field"><label for="c-deadline">Prazo</label><input id="c-deadline" v-model="conversion.deadline" type="date" required/></div></div>
+        <div class="conversion-generation-summary"><b>{{ conversionService?.name || convertingLead.service }}</b><span>{{ conversionService?.taskTemplates.length ?? 3 }} tarefa(s) iniciais e {{ state.briefingTemplates.find(template => template.id === conversionService?.briefingTemplateId)?.name || state.briefingTemplates[0]?.name || 'questionário geral' }}</span><small>O projeto ficará ligado à oportunidade original, com contato e observações preservados.</small></div>
+        <div class="form-row"><div class="field"><label for="c-value">Preço combinado (R$) · revise a sugestão</label><input id="c-value" v-model.number="conversion.value" type="number" min="0" step="0.01" required/></div><div class="field"><label for="c-deadline">Prazo</label><input id="c-deadline" v-model="conversion.deadline" type="date" required/></div></div>
         <div class="field"><label for="c-status">Status inicial</label><select id="c-status" v-model="conversion.status"><option value="planejado">Planejado</option><option value="andamento">Em andamento</option><option value="revisao">Em revisão</option><option value="entregue">Entregue</option></select></div>
         <p v-if="error" class="form-error" role="alert">{{ error }}</p><div class="modal-actions"><button type="button" class="btn btn-outline" @click="showConversion = false">Cancelar</button><button class="btn btn-dark" type="submit">Criar projeto</button></div>
       </form>

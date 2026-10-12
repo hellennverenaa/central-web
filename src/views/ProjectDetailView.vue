@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
-import { ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, FolderKanban, Pencil, Plus, Trash2, Wallet } from 'lucide-vue-next'
-import { state, addTask, addTransaction, persistenceError, removeItem, updateProject, updateTask, updateTransaction } from '../lib/store'
+import { computed, reactive, ref, watch } from 'vue'
+import { ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, ClipboardList, FolderKanban, Pencil, Plus, Trash2, Wallet } from 'lucide-vue-next'
+import { state, addTask, addTransaction, persistenceError, removeItem, updateProject, updateProjectBriefing, updateTask, updateTransaction } from '../lib/store'
 import { brl, dateBR, projectLabels, todayLocal } from '../lib/format'
 import { serviceSuggestion } from '../lib/pricing'
-import type { ProjectStatus, Transaction, TransactionType } from '../lib/types'
+import { briefingProgress, isQuestionVisible, unansweredRequiredQuestionIds } from '../lib/briefing'
+import type { BriefingAnswer, BriefingQuestionDefinition, ProjectStatus, Transaction, TransactionType } from '../lib/types'
 
 type MainPage = 'projects' | 'leads' | 'services' | 'finance' | 'tasks'
 const props = defineProps<{ projectId: string; notice?: string }>()
@@ -16,6 +17,12 @@ const tasks = computed(() => state.tasks.filter(task => task.projectId === props
 const transactions = computed(() => state.transactions.filter(item => item.projectId === props.projectId))
 const received = computed(() => transactions.value.filter(item => item.kind === 'entrada').reduce((sum, item) => sum + item.amount, 0))
 const spent = computed(() => transactions.value.filter(item => item.kind === 'saida').reduce((sum, item) => sum + item.amount, 0))
+const projectBriefing = computed(() => state.projectBriefings.find(item => item.id === project.value?.briefingId) ?? null)
+const briefingAnswers = reactive<Record<string, BriefingAnswer>>({})
+const briefingError = ref('')
+const briefingFeedback = ref('')
+const briefingProgressValue = computed(() => projectBriefing.value ? briefingProgress({ ...projectBriefing.value, answers: { ...briefingAnswers } }) : { complete: 0, total: 0 })
+const missingBriefingAnswers = computed(() => projectBriefing.value ? unansweredRequiredQuestionIds({ ...projectBriefing.value, answers: { ...briefingAnswers } }).length : 0)
 const openProjectForm = ref(false)
 const openTaskForm = ref(false)
 const openTransactionForm = ref(false)
@@ -26,6 +33,40 @@ const feedback = ref('')
 const projectForm = reactive({ name: '', client: '', serviceId: '', status: 'planejado' as ProjectStatus, deadline: todayLocal(), value: 0 })
 const taskForm = reactive({ title: '' })
 const transactionForm = reactive({ description: '', kind: 'entrada' as TransactionType, amount: 0, date: todayLocal() })
+
+watch(() => projectBriefing.value?.id, () => {
+  for (const key of Object.keys(briefingAnswers)) delete briefingAnswers[key]
+  if (projectBriefing.value) Object.assign(briefingAnswers, JSON.parse(JSON.stringify(projectBriefing.value.answers)) as Record<string, BriefingAnswer>)
+  briefingError.value = ''
+  briefingFeedback.value = ''
+}, { immediate: true })
+
+function visibleQuestion(question: BriefingQuestionDefinition) { return isQuestionVisible(question, briefingAnswers) }
+function scalarAnswer(questionId: string): string {
+  const answer = briefingAnswers[questionId]
+  return typeof answer === 'string' ? answer : ''
+}
+function setScalarAnswer(questionId: string, event: Event) {
+  briefingAnswers[questionId] = (event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value
+}
+function selectedAnswers(questionId: string): string[] {
+  const answer = briefingAnswers[questionId]
+  return Array.isArray(answer) ? answer : []
+}
+function toggleAnswer(questionId: string, option: string, checked: boolean) {
+  const answers = new Set(selectedAnswers(questionId))
+  if (checked) answers.add(option)
+  else answers.delete(option)
+  briefingAnswers[questionId] = [...answers]
+}
+function saveBriefing() {
+  briefingError.value = ''
+  if (!projectBriefing.value) { briefingError.value = 'Este projeto não tem um questionário vinculado.'; return }
+  try {
+    updateProjectBriefing(projectBriefing.value.id, { ...briefingAnswers })
+    briefingFeedback.value = persistenceError.value || (missingBriefingAnswers.value ? 'Respostas salvas. Ainda há campos obrigatórios sem resposta.' : 'Respostas do briefing salvas neste projeto.')
+  } catch (cause) { briefingError.value = cause instanceof Error ? cause.message : 'Não foi possível salvar as respostas.' }
+}
 
 function editProject() {
   if (!project.value) return
@@ -99,6 +140,19 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
 
     <div class="project-relations surface"><div><span class="section-kicker">OPORTUNIDADE DE ORIGEM</span><template v-if="sourceLead"><button class="table-link strong" @click="emit('openLead', sourceLead.id)">{{ sourceLead.name }} <ArrowRight :size="14"/></button><small>Estimativa do pipeline: {{ brl(sourceLead.value) }}</small></template><span v-else class="relation-empty">Projeto criado sem oportunidade vinculada.</span></div><div><span class="section-kicker">SERVIÇO</span><template v-if="service"><button class="table-link strong" @click="emit('openService', service.id)">{{ service.name }} <ArrowRight :size="14"/></button><small>Referência simulada: {{ brl(serviceSuggestion(service)) }}</small></template><span v-else class="relation-empty">Nenhum serviço vinculado.</span></div></div>
 
+    <section v-if="projectBriefing" class="surface project-briefing"><header class="project-briefing-header"><div><p class="section-kicker">BRIEFING DESTE PROJETO</p><h2>{{ projectBriefing.templateName }}</h2><p>{{ briefingProgressValue.complete }} de {{ briefingProgressValue.total }} campos obrigatórios respondidos</p></div><span class="brief-tag">{{ projectBriefing.sections.length }} seções</span></header>
+      <form @submit.prevent="saveBriefing"><section v-for="section in projectBriefing.sections" :key="section.id" class="project-briefing-section"><div class="project-briefing-section-heading"><h3>{{ section.title }}</h3><p v-if="section.description">{{ section.description }}</p></div><div class="project-briefing-questions">
+        <template v-for="question in section.questions" :key="question.id"><fieldset v-if="visibleQuestion(question)" class="project-briefing-question"><legend>{{ question.label }} <span v-if="question.required" class="required-mark">Obrigatória</span></legend>
+          <textarea v-if="question.type === 'long-text'" :id="`answer-${question.id}`" :value="scalarAnswer(question.id)" rows="3" @input="setScalarAnswer(question.id, $event)"/>
+          <select v-else-if="question.type === 'single-choice' || question.type === 'yes-no'" :id="`answer-${question.id}`" :value="scalarAnswer(question.id)" @change="setScalarAnswer(question.id, $event)"><option value="">Selecione uma opção</option><option v-for="option in (question.type === 'yes-no' ? ['Sim', 'Não'] : question.options)" :key="option" :value="option">{{ option }}</option></select>
+          <div v-else-if="question.type === 'multiple-choice'" class="briefing-answer-options"><label v-for="option in question.options" :key="option"><input type="checkbox" :checked="selectedAnswers(question.id).includes(option)" @change="toggleAnswer(question.id, option, ($event.target as HTMLInputElement).checked)"/>{{ option }}</label></div>
+          <input v-else :id="`answer-${question.id}`" :type="question.type === 'short-text' ? 'text' : question.type" :value="scalarAnswer(question.id)" @input="setScalarAnswer(question.id, $event)"/>
+          <small v-if="question.example" class="briefing-answer-example">{{ question.example }}</small>
+        </fieldset></template>
+      </div></section><p v-if="briefingError" class="form-error" role="alert">{{ briefingError }}</p><p v-if="briefingFeedback" class="inline-notice" role="status">{{ briefingFeedback }}</p><div class="project-briefing-actions"><small>Rascunhos podem ser salvos antes de preencher todos os campos obrigatórios.</small><button class="btn btn-dark" type="submit">Salvar respostas</button></div></form>
+    </section>
+    <div v-else class="surface empty compact"><ClipboardList :size="22"/><b>Briefing não encontrado</b><p>Confira o vínculo do projeto ou escolha um modelo em Serviços.</p></div>
+
     <div class="detail-grid">
       <section class="surface detail-section"><div class="section-top"><div><p class="section-kicker">PRODUÇÃO</p><h2>Tarefas</h2></div><button class="btn btn-outline btn-slim" @click="createTask"><Plus :size="15"/> Nova tarefa</button></div>
         <div v-if="tasks.length" class="detail-list"><article v-for="task in tasks" :key="task.id" class="detail-row" :class="{ 'done-task': task.done }"><label><input :checked="task.done" type="checkbox" @change="toggleTask(task.id, ($event.target as HTMLInputElement).checked)"/><span>{{ task.title }}</span></label><div class="row-actions"><button class="icon-button" :aria-label="`Editar ${task.title}`" @click="editTask(task.id)"><Pencil :size="15"/></button><button class="icon-button danger" :aria-label="`Excluir ${task.title}`" @click="dropTask(task.id)"><Trash2 :size="15"/></button></div></article></div><div v-else class="empty compact"><CheckCircle2 :size="22"/><b>Nenhuma tarefa vinculada</b><p>Crie a próxima ação deste projeto.</p></div>
@@ -108,7 +162,7 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
       </section>
     </div>
 
-    <Teleport to="body"><div v-if="openProjectForm" class="modal-backdrop" @click.self="openProjectForm = false"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-project-title"><div class="modal-head"><h2 id="detail-project-title">Editar projeto</h2><button class="icon-button" aria-label="Fechar" @click="openProjectForm = false">✕</button></div><form @submit.prevent="saveProject"><div class="field"><label for="dp-name">Nome *</label><input id="dp-name" v-model="projectForm.name" required maxlength="140" autofocus/></div><div class="field"><label for="dp-client">Cliente *</label><input id="dp-client" v-model="projectForm.client" required maxlength="120"/></div><div class="field"><label for="dp-service">Serviço</label><select id="dp-service" v-model="projectForm.serviceId"><option value="">Sem vínculo de serviço</option><option v-for="item in state.services" :key="item.id" :value="item.id">{{ item.name }}</option></select></div><div class="form-row"><div class="field"><label for="dp-status">Status</label><select id="dp-status" v-model="projectForm.status"><option value="planejado">Planejado</option><option value="andamento">Em andamento</option><option value="revisao">Em revisão</option><option value="entregue">Entregue</option></select></div><div class="field"><label for="dp-deadline">Prazo</label><input id="dp-deadline" v-model="projectForm.deadline" type="date" required/></div></div><div class="field"><label for="dp-value">Preço combinado (R$)</label><input id="dp-value" v-model.number="projectForm.value" type="number" min="0" step="0.01" required/></div><p v-if="error" class="form-error" role="alert">{{ error }}</p><div class="modal-actions"><button type="button" class="btn btn-outline" @click="openProjectForm = false">Cancelar</button><button class="btn btn-dark">Salvar alterações</button></div></form></div></div></Teleport>
+    <Teleport to="body"><div v-if="openProjectForm" class="modal-backdrop" @click.self="openProjectForm = false"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-project-title"><div class="modal-head"><h2 id="detail-project-title">Editar projeto</h2><button class="icon-button" aria-label="Fechar" @click="openProjectForm = false">✕</button></div><form @submit.prevent="saveProject"><div class="field"><label for="dp-name">Nome *</label><input id="dp-name" v-model="projectForm.name" required maxlength="140" autofocus/></div><div class="field"><label for="dp-client">Cliente *</label><input id="dp-client" v-model="projectForm.client" required maxlength="120"/></div><div class="field"><label for="dp-service">Serviço</label><select id="dp-service" v-model="projectForm.serviceId"><option value="">Sem vínculo de serviço</option><option v-for="item in state.services" :key="item.id" :value="item.id">{{ item.name }}</option></select><small>Alterar o serviço não substitui as tarefas nem as respostas já vinculadas ao projeto.</small></div><div class="form-row"><div class="field"><label for="dp-status">Status</label><select id="dp-status" v-model="projectForm.status"><option value="planejado">Planejado</option><option value="andamento">Em andamento</option><option value="revisao">Em revisão</option><option value="entregue">Entregue</option></select></div><div class="field"><label for="dp-deadline">Prazo</label><input id="dp-deadline" v-model="projectForm.deadline" type="date" required/></div></div><div class="field"><label for="dp-value">Preço combinado (R$)</label><input id="dp-value" v-model.number="projectForm.value" type="number" min="0" step="0.01" required/></div><p v-if="error" class="form-error" role="alert">{{ error }}</p><div class="modal-actions"><button type="button" class="btn btn-outline" @click="openProjectForm = false">Cancelar</button><button class="btn btn-dark">Salvar alterações</button></div></form></div></div></Teleport>
 
     <Teleport to="body"><div v-if="openTaskForm" class="modal-backdrop" @click.self="openTaskForm = false"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-task-title"><div class="modal-head"><h2 id="detail-task-title">{{ editingTaskId ? 'Editar tarefa' : 'Nova tarefa do projeto' }}</h2><button class="icon-button" aria-label="Fechar" @click="openTaskForm = false">✕</button></div><form @submit.prevent="saveTask"><div class="field"><label for="dt-title">Tarefa *</label><input id="dt-title" v-model="taskForm.title" required maxlength="180" autofocus/></div><p v-if="error" class="form-error" role="alert">{{ error }}</p><div class="modal-actions"><button type="button" class="btn btn-outline" @click="openTaskForm = false">Cancelar</button><button class="btn btn-dark">Salvar tarefa</button></div></form></div></div></Teleport>
 

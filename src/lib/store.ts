@@ -1,7 +1,8 @@
 import { computed, reactive, ref, watch } from 'vue'
-import type { BriefingQuestion, Lead, PlanItem, Project, Publication, Service, Task, Transaction, Workspace } from './types'
-import { todayLocal } from './format'
-import { convertOpportunityToProject, createInitialWorkspace, migrateWorkspace, readWorkspace, writeWorkspace, type ProjectConversionInput, type StoragePort } from './workspace.ts'
+import type { BriefingAnswer, BriefingQuestion, BriefingTemplate, Lead, PlanItem, Project, Publication, ProjectBriefing, Service, Task, Transaction, Workspace } from './types'
+import { todayLocal } from './format.ts'
+import { validateBriefingTemplate } from './briefing.ts'
+import { convertOpportunityToProject, createInitialWorkspace, createProjectBriefing, migrateWorkspace, readWorkspace, writeWorkspace, type ProjectConversionInput, type StoragePort } from './workspace.ts'
 
 function getBrowserStorage(): { storage?: StoragePort; warning: string } {
   try {
@@ -65,14 +66,24 @@ export function updateLead(id: string, input: Omit<Lead, 'id' | 'createdAt' | 'c
   return saved(lead)
 }
 
-export function addProject(input: Omit<Project, 'id' | 'createdAt' | 'sourceLeadId'>): Project {
+export function addProject(input: Omit<Project, 'id' | 'createdAt' | 'sourceLeadId' | 'briefingId'>): Project {
   if (input.serviceId && !state.services.some(service => service.id === input.serviceId)) throw new Error('O serviço selecionado não existe mais.')
-  const project: Project = { ...input, sourceLeadId: null, id: uid(), createdAt: new Date().toISOString() }
+  const service = state.services.find(item => item.id === input.serviceId)
+  const template = state.briefingTemplates.find(item => item.id === service?.briefingTemplateId) ?? state.briefingTemplates[0]
+  if (!template) throw new Error('Cadastre um modelo de briefing antes de criar um projeto.')
+  const id = uid()
+  const createdAt = new Date().toISOString()
+  const briefingId = uid()
+  const project: Project = { ...input, sourceLeadId: null, briefingId, id, createdAt }
+  state.projectBriefings.unshift(createProjectBriefing(id, template, briefingId, createdAt))
+  state.tasks.unshift(...(service?.taskTemplates ?? []).filter(title => title.trim()).map(title => ({
+    id: uid(), title: title.trim(), done: false, projectId: id, createdAt,
+  })))
   state.projects.unshift(project)
   return saved(project)
 }
 
-export function updateProject(id: string, input: Omit<Project, 'id' | 'createdAt' | 'sourceLeadId'>): Project {
+export function updateProject(id: string, input: Omit<Project, 'id' | 'createdAt' | 'sourceLeadId' | 'briefingId'>): Project {
   const project = state.projects.find(item => item.id === id)
   if (!project) throw new Error('O projeto não foi encontrado.')
   if (input.serviceId && !state.services.some(service => service.id === input.serviceId)) throw new Error('O serviço selecionado não existe mais.')
@@ -120,18 +131,61 @@ export function updateTask(id: string, input: Pick<Task, 'title' | 'done' | 'pro
 }
 
 export function addPlan(input: Omit<PlanItem, 'id'>) { state.plan.push({ ...input, id: uid() }); persistNow() }
-export function addService(input: Omit<Service, 'id'>): Service { const service = { ...input, id: uid() }; state.services.push(service); return saved(service) }
+export function addService(input: Omit<Service, 'id'>): Service {
+  if (!input.name.trim()) throw new Error('Informe o nome do serviço.')
+  if (!input.taskTemplates.some(title => title.trim())) throw new Error('Inclua ao menos uma tarefa no modelo do serviço.')
+  if (input.briefingTemplateId && !state.briefingTemplates.some(template => template.id === input.briefingTemplateId)) throw new Error('O modelo de briefing selecionado não existe mais.')
+  const service = { ...input, name: input.name.trim(), taskTemplates: input.taskTemplates.map(title => title.trim()).filter(Boolean), id: uid() }
+  state.services.push(service)
+  return saved(service)
+}
 export function updateService(id: string, input: Omit<Service, 'id'>): Service {
   const service = state.services.find(item => item.id === id)
   if (!service) throw new Error('O serviço não foi encontrado.')
   if (!input.name.trim()) throw new Error('Informe o nome do serviço.')
-  Object.assign(service, input, { name: input.name.trim() })
+  if (input.briefingTemplateId && !state.briefingTemplates.some(template => template.id === input.briefingTemplateId)) throw new Error('O modelo de briefing selecionado não existe mais.')
+  if (!input.taskTemplates.some(title => title.trim())) throw new Error('Inclua ao menos uma tarefa no modelo do serviço.')
+  Object.assign(service, input, { name: input.name.trim(), taskTemplates: input.taskTemplates.map(title => title.trim()).filter(Boolean) })
   return saved(service)
 }
+export function addBriefingTemplate(input: Omit<BriefingTemplate, 'id'>): BriefingTemplate {
+  const validationError = validateBriefingTemplate(input)
+  if (validationError) throw new Error(validationError)
+  const template = { ...JSON.parse(JSON.stringify(input)) as Omit<BriefingTemplate, 'id'>, id: uid() }
+  state.briefingTemplates.push(template)
+  return saved(template)
+}
+export function updateBriefingTemplate(id: string, input: Omit<BriefingTemplate, 'id'>): BriefingTemplate {
+  const template = state.briefingTemplates.find(item => item.id === id)
+  if (!template) throw new Error('O modelo de briefing não foi encontrado.')
+  const validationError = validateBriefingTemplate(input)
+  if (validationError) throw new Error(validationError)
+  Object.assign(template, JSON.parse(JSON.stringify(input)) as Omit<BriefingTemplate, 'id'>, { name: input.name.trim() })
+  return saved(template)
+}
+export function updateProjectBriefing(id: string, answers: Record<string, BriefingAnswer>): ProjectBriefing {
+  const briefing = state.projectBriefings.find(item => item.id === id)
+  if (!briefing) throw new Error('As respostas deste projeto não foram encontradas.')
+  const knownQuestions = new Map(briefing.sections.flatMap(section => section.questions.map(question => [question.id, question] as const)))
+  for (const [questionId, answer] of Object.entries(answers)) {
+    const question = knownQuestions.get(questionId)
+    if (!question) throw new Error('As respostas incluem uma pergunta que não pertence a este briefing.')
+    if (question.type === 'multiple-choice') {
+      if (!Array.isArray(answer) || answer.some(option => !question.options.includes(option))) throw new Error(`Revise as opções marcadas em “${question.label}”.`)
+    } else {
+      if (Array.isArray(answer)) throw new Error(`A resposta de “${question.label}” deve ser um único valor.`)
+      if (question.type === 'single-choice' && answer && !question.options.includes(answer)) throw new Error(`Selecione uma opção válida em “${question.label}”.`)
+      if (question.type === 'yes-no' && answer && !['Sim', 'Não'].includes(answer)) throw new Error(`Selecione Sim ou Não em “${question.label}”.`)
+    }
+  }
+  briefing.answers = JSON.parse(JSON.stringify(answers)) as Record<string, BriefingAnswer>
+  briefing.updatedAt = new Date().toISOString()
+  return saved(briefing)
+}
 export function addPublication(input: Omit<Publication, 'id'>) { state.publications.push({ ...input, id: uid() }); persistNow() }
-export function addBriefingQuestion(input: Omit<BriefingQuestion, 'id'>) { state.briefing.push({ ...input, id: uid() }); persistNow() }
+export function addBriefingQuestion(input: Omit<BriefingQuestion, 'id'>) { state.legacyBriefing.push({ ...input, id: uid() }); persistNow() }
 
-type CollectionKey = 'leads' | 'projects' | 'transactions' | 'tasks' | 'plan' | 'services' | 'publications' | 'briefing'
+type CollectionKey = 'leads' | 'projects' | 'transactions' | 'tasks' | 'plan' | 'services' | 'publications' | 'briefingTemplates' | 'legacyBriefing'
 export function removeItem(key: CollectionKey, id: string): void {
   const collection = state[key] as Array<{ id: string }>
   const index = collection.findIndex(item => item.id === id)
@@ -141,11 +195,15 @@ export function removeItem(key: CollectionKey, id: string): void {
     state.leads.forEach(lead => { if (lead.convertedProjectId === id) lead.convertedProjectId = null })
     state.tasks.forEach(task => { if (task.projectId === id) task.projectId = null })
     state.transactions.forEach(transaction => { if (transaction.projectId === id) transaction.projectId = null })
+    state.projectBriefings = state.projectBriefings.filter(briefing => briefing.projectId !== id)
   } else if (key === 'leads') {
     state.projects.forEach(project => { if (project.sourceLeadId === id) project.sourceLeadId = null })
   } else if (key === 'services') {
     state.leads.forEach(lead => { if (lead.serviceId === id) lead.serviceId = null })
     state.projects.forEach(project => { if (project.serviceId === id) project.serviceId = null })
+  } else if (key === 'briefingTemplates') {
+    state.services.forEach(service => { if (service.briefingTemplateId === id) service.briefingTemplateId = null })
+    state.projectBriefings.forEach(briefing => { if (briefing.templateId === id) briefing.templateId = null })
   }
   persistNow()
 }
@@ -173,15 +231,21 @@ export function exportWorkspace(): void {
 
 export function loadDemo(): void {
   const d = todayLocal()
-  Object.assign(state, {
-    ...createInitialWorkspace(),
-    leads: [
-      { id: uid(), name: 'Barbearia Exemplo', contact: '', service: 'Landing page', serviceId: null, convertedProjectId: null, stage: 'conversa', value: 850, notes: 'Dados fictícios.', createdAt: new Date().toISOString() },
-      { id: uid(), name: 'Cliente de casamento (demo)', contact: '', service: 'Site de casamento', serviceId: null, convertedProjectId: null, stage: 'proposta', value: 600, notes: 'Dados fictícios.', createdAt: new Date().toISOString() },
-    ],
-    projects: [{ id: uid(), name: 'Convite digital demonstração', client: 'Portfólio', serviceId: null, sourceLeadId: null, status: 'andamento', deadline: d, value: 0, createdAt: new Date().toISOString() }],
-    transactions: [{ id: uid(), description: 'Recebimento fictício', kind: 'entrada', amount: 350, date: d, projectId: null, createdAt: new Date().toISOString() }],
-    tasks: [{ id: uid(), title: 'Preparar divulgação do convite', done: false, projectId: null, createdAt: new Date().toISOString() }],
-  } satisfies Workspace)
+  const demo = createInitialWorkspace()
+  const service = demo.services.find(item => item.id === 'service-02')!
+  const leadId = uid()
+  const projectId = uid()
+  const briefingId = uid()
+  const createdAt = new Date().toISOString()
+  demo.leads = [
+    { id: leadId, name: 'Cliente de exemplo', contact: '', service: service.name, serviceId: service.id, convertedProjectId: projectId, stage: 'ganho', value: 600, notes: 'Dados fictícios.', createdAt },
+    { id: uid(), name: 'Negócio de demonstração', contact: '', service: 'Página para negócio local', serviceId: 'service-04', convertedProjectId: null, stage: 'conversa', value: 850, notes: 'Dados fictícios.', createdAt },
+  ]
+  demo.projects = [{ id: projectId, name: 'Convite digital de demonstração', client: 'Cliente de exemplo', serviceId: service.id, sourceLeadId: leadId, briefingId, status: 'andamento', deadline: d, value: 600, createdAt }]
+  const template = demo.briefingTemplates.find(item => item.id === service.briefingTemplateId)!
+  demo.projectBriefings = [createProjectBriefing(projectId, template, briefingId, createdAt)]
+  demo.transactions = [{ id: uid(), description: 'Recebimento fictício', kind: 'entrada', amount: 350, date: d, projectId, createdAt }]
+  demo.tasks = service.taskTemplates.map(title => ({ id: uid(), title, done: false, projectId, createdAt }))
+  Object.assign(state, demo)
   persistNow()
 }

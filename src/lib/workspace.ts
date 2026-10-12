@@ -1,8 +1,14 @@
-import type { BriefingQuestion, Lead, Project, Publication, Service, Task, Transaction, Workspace } from './types.ts'
-import { initialBriefing, initialPlan, initialPublications, initialServices } from './catalog.ts'
+import type {
+  BriefingQuestion, BriefingQuestionDefinition, BriefingSection, BriefingTemplate,
+  Lead, Project, ProjectBriefing, Publication, Service, Task, Transaction, Workspace,
+} from './types.ts'
+import {
+  initialBriefing, initialBriefingTemplates, initialPlan, initialPublications, initialServices,
+  serviceBriefingTemplates, serviceTaskTemplates,
+} from './catalog.ts'
 
-export const WORKSPACE_STORAGE_KEY = 'central-web:workspace:v3'
-export const LEGACY_STORAGE_KEYS = ['central-web:workspace:v2', 'central-web:workspace:v1'] as const
+export const WORKSPACE_STORAGE_KEY = 'central-web:workspace:v4'
+export const LEGACY_STORAGE_KEYS = ['central-web:workspace:v3', 'central-web:workspace:v2', 'central-web:workspace:v1'] as const
 
 export interface StoragePort {
   getItem(key: string): string | null
@@ -15,19 +21,31 @@ export interface WorkspaceLoadResult {
   warning: string
 }
 
-const clone = <T>(value: readonly T[]): T[] => JSON.parse(JSON.stringify(value)) as T[]
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+const genericTasks = ['Confirmar escopo e materiais com o cliente', 'Preparar primeira versão', 'Revisar ajustes e combinar a entrega']
+const DEFAULT_BRIEFING_TEMPLATE_ID = 'brief-template-general'
+
+function enrichService(service: Omit<Service, 'taskTemplates' | 'briefingTemplateId'> & Partial<Pick<Service, 'taskTemplates' | 'briefingTemplateId'>>): Service {
+  return {
+    ...service,
+    taskTemplates: service.taskTemplates?.length ? [...service.taskTemplates] : [...(serviceTaskTemplates[service.id] ?? genericTasks)],
+    briefingTemplateId: service.briefingTemplateId ?? serviceBriefingTemplates[service.id] ?? null,
+  }
+}
 
 export function createInitialWorkspace(): Workspace {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     leads: [],
     projects: [],
     transactions: [],
     tasks: [],
-    plan: clone(initialPlan),
-    services: clone(initialServices),
-    publications: clone(initialPublications),
-    briefing: clone(initialBriefing),
+    plan: clone([...initialPlan]),
+    services: clone(initialServices).map(service => enrichService(service)),
+    publications: clone([...initialPublications]),
+    briefingTemplates: clone(initialBriefingTemplates),
+    projectBriefings: [],
+    legacyBriefing: clone([...initialBriefing]),
   }
 }
 
@@ -35,6 +53,7 @@ const object = (value: unknown): value is Record<string, unknown> => typeof valu
 const str = (value: unknown): value is string => typeof value === 'string'
 const nullableString = (value: unknown): value is string | null => value === null || str(value)
 const num = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0
+const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.length <= 500 && value.every(str)
 const isArray = (value: unknown, validate: (row: Record<string, unknown>) => boolean): boolean =>
   Array.isArray(value) && value.length <= 3000 && value.every((row: unknown) => object(row) && validate(row))
 
@@ -51,43 +70,109 @@ const validTaskBase = (x: Record<string, unknown>) => ['id', 'title', 'createdAt
 const validPlan = (x: Record<string, unknown>) =>
   ['id', 'week', 'title', 'goal', 'priority', 'nextStep', 'notes'].every(k => str(x[k])) &&
   ['nao-iniciado', 'andamento', 'concluido'].includes(String(x.status)) && num(x.hours)
-const validService = (x: Record<string, unknown>) =>
+const validServiceBase = (x: Record<string, unknown>) =>
   ['id', 'name', 'scope', 'exclusions', 'availability'].every(k => str(x[k])) &&
   ['hours', 'hourlyRate', 'extras', 'contingency'].every(k => num(x[k])) && Number(x.contingency) <= 3
+const validService = (x: Record<string, unknown>) => validServiceBase(x) && isStringArray(x.taskTemplates) && x.taskTemplates.some(title => title.trim()) && nullableString(x.briefingTemplateId)
 const validPublication = (x: Record<string, unknown>) =>
   ['id', 'week', 'channel', 'topic', 'copy', 'audience', 'result', 'url'].every(k => str(x[k])) &&
   ['planejado', 'produzindo', 'publicado'].includes(String(x.status))
-const validBriefing = (x: Record<string, unknown>) => ['id', 'phase', 'question', 'reason', 'required', 'answer', 'nextAction', 'notes'].every(k => str(x[k]))
+const validLegacyBriefing = (x: Record<string, unknown>) => ['id', 'phase', 'question', 'reason', 'required', 'answer', 'nextAction', 'notes'].every(k => str(x[k]))
+const validQuestionTypes = ['short-text', 'long-text', 'email', 'url', 'date', 'number', 'single-choice', 'multiple-choice', 'yes-no']
 
-const validLeadV3 = (x: Record<string, unknown>) => validLeadBase(x) && nullableString(x.serviceId) && nullableString(x.convertedProjectId)
-const validProjectV3 = (x: Record<string, unknown>) => validProjectBase(x) && nullableString(x.serviceId) && nullableString(x.sourceLeadId)
-const validTransactionV3 = (x: Record<string, unknown>) => validTransactionBase(x) && nullableString(x.projectId)
-const validTaskV3 = (x: Record<string, unknown>) => validTaskBase(x) && nullableString(x.projectId)
+const validCondition = (value: unknown): boolean => value === null || (object(value) &&
+  str(value.questionId) && ['equals', 'includes', 'answered'].includes(String(value.operator)) &&
+  (value.value === undefined || str(value.value)))
+const validQuestion = (x: Record<string, unknown>): boolean =>
+  ['id', 'label', 'example'].every(k => str(x[k])) && validQuestionTypes.includes(String(x.type)) &&
+  Boolean(String(x.id).trim()) && Boolean(String(x.label).trim()) && typeof x.required === 'boolean' && isStringArray(x.options) &&
+  (!['single-choice', 'multiple-choice'].includes(String(x.type)) || x.options.length > 0) && validCondition(x.condition)
+const validSection = (x: Record<string, unknown>): boolean =>
+  ['id', 'title', 'description'].every(k => str(x[k])) && Boolean(String(x.id).trim()) && Boolean(String(x.title).trim()) &&
+  Array.isArray(x.questions) && x.questions.length > 0 && isArray(x.questions, validQuestion)
+const validTemplate = (x: Record<string, unknown>): boolean =>
+  ['id', 'name', 'description'].every(k => str(x[k])) && Boolean(String(x.id).trim()) && Boolean(String(x.name).trim()) &&
+  Array.isArray(x.sections) && x.sections.length > 0 && isArray(x.sections, validSection)
+const validAnswerMap = (value: unknown): boolean => object(value) && Object.values(value).every(answer =>
+  str(answer) || (Array.isArray(answer) && answer.every(str)))
+const validProjectBriefing = (x: Record<string, unknown>): boolean =>
+  ['id', 'projectId', 'templateName', 'createdAt', 'updatedAt'].every(k => str(x[k])) && nullableString(x.templateId) &&
+  isArray(x.sections, validSection) && validAnswerMap(x.answers)
+
+function questionsIn(sections: BriefingSection[]): BriefingQuestionDefinition[] {
+  return sections.flatMap(section => section.questions)
+}
+
+function validQuestionGraph(sections: BriefingSection[]): boolean {
+  if (!sections.length || !validCollectionIds(sections)) return false
+  const questions = questionsIn(sections)
+  if (!validCollectionIds(questions)) return false
+  const byId = new Map(questions.map(question => [question.id, question]))
+  if (!questions.every(question => !question.condition ||
+    (question.condition.questionId !== question.id && byId.has(question.condition.questionId) &&
+      (question.condition.operator === 'answered' || Boolean(question.condition.value?.trim()))))) return false
+  const visiting = new Set<string>()
+  const visited = new Set<string>()
+  const hasCycle = (id: string): boolean => {
+    if (visiting.has(id)) return true
+    if (visited.has(id)) return false
+    visiting.add(id)
+    const parent = byId.get(id)?.condition?.questionId
+    if (parent && hasCycle(parent)) return true
+    visiting.delete(id)
+    visited.add(id)
+    return false
+  }
+  return questions.every(question => !hasCycle(question.id))
+}
+
+function validAnswersForSections(sections: BriefingSection[], answers: Record<string, string | string[]>): boolean {
+  const questions = new Map(questionsIn(sections).map(question => [question.id, question]))
+  return Object.entries(answers).every(([id, answer]) => {
+    const question = questions.get(id)
+    if (!question) return false
+    if (question.type === 'multiple-choice') return Array.isArray(answer) && answer.every(value => question.options.includes(value))
+    return typeof answer === 'string' && (!['single-choice', 'yes-no'].includes(question.type) || !answer || question.options.includes(answer) || (question.type === 'yes-no' && ['Sim', 'Não'].includes(answer)))
+  })
+}
 
 function validCollectionIds(rows: Array<{ id: string }>): boolean {
   return new Set(rows.map(row => row.id)).size === rows.length
 }
 
-function isValidWorkspaceV3(x: unknown): x is Workspace {
-  if (!object(x) || x.schemaVersion !== 3 ||
-      !isArray(x.leads, validLeadV3) || !isArray(x.projects, validProjectV3) ||
-      !isArray(x.transactions, validTransactionV3) || !isArray(x.tasks, validTaskV3) ||
+function isValidWorkspaceV4(x: unknown): x is Workspace {
+  if (!object(x) || x.schemaVersion !== 4 ||
+      !isArray(x.leads, row => validLeadBase(row) && nullableString(row.serviceId) && nullableString(row.convertedProjectId)) ||
+      !isArray(x.projects, row => validProjectBase(row) && nullableString(row.serviceId) && nullableString(row.sourceLeadId) && str(row.briefingId)) ||
+      !isArray(x.transactions, row => validTransactionBase(row) && nullableString(row.projectId)) ||
+      !isArray(x.tasks, row => validTaskBase(row) && nullableString(row.projectId)) ||
       !isArray(x.plan, validPlan) || !isArray(x.services, validService) ||
-      !isArray(x.publications, validPublication) || !isArray(x.briefing, validBriefing)) return false
+      !isArray(x.publications, validPublication) || !isArray(x.briefingTemplates, validTemplate) ||
+      !isArray(x.projectBriefings, validProjectBriefing) || !isArray(x.legacyBriefing, validLegacyBriefing)) return false
 
   const workspace = x as unknown as Workspace
-  if (![workspace.leads, workspace.projects, workspace.transactions, workspace.tasks, workspace.plan, workspace.services, workspace.publications, workspace.briefing].every(validCollectionIds)) return false
+  const collections = [workspace.leads, workspace.projects, workspace.transactions, workspace.tasks, workspace.plan,
+    workspace.services, workspace.publications, workspace.briefingTemplates, workspace.projectBriefings, workspace.legacyBriefing]
+  if (!collections.every(validCollectionIds)) return false
+  if (![...workspace.briefingTemplates, ...workspace.projectBriefings].every(row => validQuestionGraph(row.sections))) return false
   const leadIds = new Set(workspace.leads.map(lead => lead.id))
   const projectIds = new Set(workspace.projects.map(project => project.id))
   const serviceIds = new Set(workspace.services.map(service => service.id))
-  return workspace.leads.every(lead =>
-    (!lead.serviceId || serviceIds.has(lead.serviceId)) &&
-    (!lead.convertedProjectId || projectIds.has(lead.convertedProjectId)) &&
-    (!lead.convertedProjectId || workspace.projects.some(project => project.id === lead.convertedProjectId && project.sourceLeadId === lead.id))) &&
+  const templateIds = new Set(workspace.briefingTemplates.map(template => template.id))
+  const briefingById = new Map(workspace.projectBriefings.map(briefing => [briefing.id, briefing]))
+  const projectsWithBriefings = new Set(workspace.projectBriefings.map(briefing => briefing.projectId))
+  if (projectsWithBriefings.size !== workspace.projectBriefings.length) return false
+  return workspace.services.every(service => !service.briefingTemplateId || templateIds.has(service.briefingTemplateId)) &&
+    workspace.leads.every(lead =>
+      (!lead.serviceId || serviceIds.has(lead.serviceId)) &&
+      (!lead.convertedProjectId || projectIds.has(lead.convertedProjectId)) &&
+      (!lead.convertedProjectId || workspace.projects.some(project => project.id === lead.convertedProjectId && project.sourceLeadId === lead.id))) &&
     workspace.projects.every(project =>
       (!project.serviceId || serviceIds.has(project.serviceId)) &&
       (!project.sourceLeadId || leadIds.has(project.sourceLeadId)) &&
-      (!project.sourceLeadId || workspace.leads.some(lead => lead.id === project.sourceLeadId && lead.convertedProjectId === project.id))) &&
+      (!project.sourceLeadId || workspace.leads.some(lead => lead.id === project.sourceLeadId && lead.convertedProjectId === project.id)) &&
+      projectsWithBriefings.has(project.id) && briefingById.get(project.briefingId ?? '')?.projectId === project.id) &&
+    workspace.projectBriefings.every(briefing => projectIds.has(briefing.projectId) && (!briefing.templateId || templateIds.has(briefing.templateId)) && validAnswersForSections(briefing.sections, briefing.answers)) &&
     workspace.transactions.every(transaction => !transaction.projectId || projectIds.has(transaction.projectId)) &&
     workspace.tasks.every(task => !task.projectId || projectIds.has(task.projectId))
 }
@@ -98,74 +183,133 @@ function serviceIdForLabel(label: string, services: Service[]): string | null {
   return matches.length === 1 ? matches[0].id : null
 }
 
+function templateForService(services: Service[], serviceId: string | null): BriefingTemplate {
+  const templateId = services.find(service => service.id === serviceId)?.briefingTemplateId
+  return initialBriefingTemplates.find(template => template.id === templateId) ??
+    initialBriefingTemplates.find(template => template.id === DEFAULT_BRIEFING_TEMPLATE_ID) ?? initialBriefingTemplates[0]
+}
+
+export function createProjectBriefing(
+  projectId: string,
+  template: BriefingTemplate,
+  id: string,
+  createdAt = new Date().toISOString(),
+): ProjectBriefing {
+  return {
+    id, projectId, templateId: template.id, templateName: template.name,
+    sections: clone(template.sections), answers: {}, createdAt, updatedAt: createdAt,
+  }
+}
+
+function attachEmptyProjectBriefings(workspace: Workspace): void {
+  for (const project of workspace.projects) {
+    const existing = workspace.projectBriefings.find(briefing => briefing.projectId === project.id)
+    if (existing) {
+      project.briefingId = existing.id
+      continue
+    }
+    const template = templateForService(workspace.services, project.serviceId)
+    const id = `project-briefing-${project.id}`
+    const briefing = createProjectBriefing(project.id, template, id, project.createdAt)
+    project.briefingId = id
+    workspace.projectBriefings.push(briefing)
+  }
+}
+
 function migrateV1(input: Record<string, unknown>): Workspace | null {
   if (input.schemaVersion !== 1 || !isArray(input.leads, validLeadBase) || !isArray(input.projects, validProjectBase) ||
       !isArray(input.transactions, validTransactionBase) || !isArray(input.tasks, validTaskBase)) return null
   const result = createInitialWorkspace()
-  const leads = input.leads as Record<string, unknown>[]
-  const projects = input.projects as Record<string, unknown>[]
-  const transactions = input.transactions as Record<string, unknown>[]
-  const tasks = input.tasks as Record<string, unknown>[]
-  result.leads = leads.map(row => {
+  result.leads = (input.leads as Record<string, unknown>[]).map(row => {
     const lead = row as unknown as Lead
     return { id: lead.id, name: lead.name, contact: lead.contact, service: lead.service, serviceId: null, convertedProjectId: null, stage: lead.stage, value: lead.value, notes: lead.notes, createdAt: lead.createdAt }
   })
-  result.projects = projects.map(row => {
+  result.projects = (input.projects as Record<string, unknown>[]).map(row => {
     const project = row as unknown as Project
-    return { id: project.id, name: project.name, client: project.client, serviceId: null, sourceLeadId: null, status: project.status, deadline: project.deadline, value: project.value, createdAt: project.createdAt }
+    return { id: project.id, name: project.name, client: project.client, serviceId: null, sourceLeadId: null, briefingId: '', status: project.status, deadline: project.deadline, value: project.value, createdAt: project.createdAt }
   })
-  result.transactions = transactions.map(row => {
+  result.transactions = (input.transactions as Record<string, unknown>[]).map(row => {
     const transaction = row as unknown as Transaction
     return { id: transaction.id, description: transaction.description, kind: transaction.kind, amount: transaction.amount, date: transaction.date, projectId: null, createdAt: transaction.createdAt }
   })
-  result.tasks = tasks.map(row => {
+  result.tasks = (input.tasks as Record<string, unknown>[]).map(row => {
     const task = row as unknown as Task
     return { id: task.id, title: task.title, done: task.done, projectId: null, createdAt: task.createdAt }
   })
   if (![result.leads, result.projects, result.transactions, result.tasks].every(validCollectionIds)) return null
+  attachEmptyProjectBriefings(result)
   return result
 }
 
 function migrateV2(input: Record<string, unknown>): Workspace | null {
   if (input.schemaVersion !== 2 || !isArray(input.leads, validLeadBase) || !isArray(input.projects, validProjectBase) ||
       !isArray(input.transactions, validTransactionBase) || !isArray(input.tasks, validTaskBase) ||
-      !isArray(input.plan, validPlan) || !isArray(input.services, validService) ||
-      !isArray(input.publications, validPublication) || !isArray(input.briefing, validBriefing)) return null
+      !isArray(input.plan, validPlan) || !isArray(input.services, validServiceBase) ||
+      !isArray(input.publications, validPublication) || !isArray(input.briefing, validLegacyBriefing)) return null
 
-  const services = input.services as unknown as Service[]
-  const result: Workspace = {
-    schemaVersion: 3,
-    leads: (input.leads as unknown as Lead[]).map(({ id, name, contact, service, stage, value, notes, createdAt }) => ({ id, name, contact, service, serviceId: serviceIdForLabel(service, services), convertedProjectId: null, stage, value, notes, createdAt })),
-    projects: (input.projects as unknown as Project[]).map(({ id, name, client, status, deadline, value, createdAt }) => ({ id, name, client, serviceId: null, sourceLeadId: null, status, deadline, value, createdAt })),
-    transactions: (input.transactions as unknown as Transaction[]).map(({ id, description, kind, amount, date, createdAt }) => ({ id, description, kind, amount, date, projectId: null, createdAt })),
-    tasks: (input.tasks as unknown as Task[]).map(({ id, title, done, createdAt }) => ({ id, title, done, projectId: null, createdAt })),
-    plan: (input.plan as Workspace['plan']).map(({ id, week, title, goal, priority, status, hours, nextStep, notes }) => ({ id, week, title, goal, priority, status, hours, nextStep, notes })),
-    services: clone(services),
-    publications: (input.publications as Publication[]).map(({ id, week, channel, topic, copy, audience, status, result, url }) => ({ id, week, channel, topic, copy, audience, status, result, url })),
-    briefing: (input.briefing as BriefingQuestion[]).map(({ id, phase, question, reason, required, answer, nextAction, notes }) => ({ id, phase, question, reason, required, answer, nextAction, notes })),
-  }
-  if (![result.leads, result.projects, result.transactions, result.tasks, result.plan, result.services, result.publications, result.briefing].every(validCollectionIds)) return null
+  const services = (input.services as unknown as Array<Omit<Service, 'taskTemplates' | 'briefingTemplateId'>>).map(enrichService)
+  const result = createInitialWorkspace()
+  result.leads = (input.leads as unknown as Lead[]).map(({ id, name, contact, service, stage, value, notes, createdAt }) => ({ id, name, contact, service, serviceId: serviceIdForLabel(service, services), convertedProjectId: null, stage, value, notes, createdAt }))
+  result.projects = (input.projects as unknown as Project[]).map(({ id, name, client, status, deadline, value, createdAt }) => ({ id, name, client, serviceId: null, sourceLeadId: null, briefingId: '', status, deadline, value, createdAt }))
+  result.transactions = (input.transactions as unknown as Transaction[]).map(({ id, description, kind, amount, date, createdAt }) => ({ id, description, kind, amount, date, projectId: null, createdAt }))
+  result.tasks = (input.tasks as unknown as Task[]).map(({ id, title, done, createdAt }) => ({ id, title, done, projectId: null, createdAt }))
+  result.plan = clone(input.plan as Workspace['plan'])
+  result.services = services
+  result.publications = clone(input.publications as Publication[])
+  result.legacyBriefing = clone(input.briefing as BriefingQuestion[])
+  const ids = [result.leads, result.projects, result.transactions, result.tasks, result.plan, result.services, result.publications, result.legacyBriefing]
+  if (!ids.every(validCollectionIds)) return null
+  attachEmptyProjectBriefings(result)
   return result
 }
 
-/** Accepts current data and valid v1/v2 backups, returning a clean v3 workspace. */
+function migrateV3(input: Record<string, unknown>): Workspace | null {
+  const validV3Service = (row: Record<string, unknown>) => validServiceBase(row)
+  const validV3Project = (row: Record<string, unknown>) => validProjectBase(row) && nullableString(row.serviceId) && nullableString(row.sourceLeadId)
+  if (input.schemaVersion !== 3 ||
+      !isArray(input.leads, row => validLeadBase(row) && nullableString(row.serviceId) && nullableString(row.convertedProjectId)) ||
+      !isArray(input.projects, validV3Project) ||
+      !isArray(input.transactions, row => validTransactionBase(row) && nullableString(row.projectId)) ||
+      !isArray(input.tasks, row => validTaskBase(row) && nullableString(row.projectId)) ||
+      !isArray(input.plan, validPlan) || !isArray(input.services, validV3Service) ||
+      !isArray(input.publications, validPublication) || !isArray(input.briefing, validLegacyBriefing)) return null
+  const result = createInitialWorkspace()
+  const services = (input.services as unknown as Array<Omit<Service, 'taskTemplates' | 'briefingTemplateId'>>).map(enrichService)
+  result.leads = clone(input.leads as Lead[])
+  result.projects = (input.projects as Array<Record<string, unknown>>).map(row => ({
+    id: String(row.id), name: String(row.name), client: String(row.client), serviceId: row.serviceId as string | null,
+    sourceLeadId: row.sourceLeadId as string | null, briefingId: '', status: row.status as Project['status'],
+    deadline: String(row.deadline), value: Number(row.value), createdAt: String(row.createdAt),
+  }))
+  result.transactions = clone(input.transactions as Transaction[])
+  result.tasks = clone(input.tasks as Task[])
+  result.plan = clone(input.plan as Workspace['plan'])
+  result.services = services
+  result.publications = clone(input.publications as Publication[])
+  result.legacyBriefing = clone(input.briefing as BriefingQuestion[])
+  const ids = [result.leads, result.projects, result.transactions, result.tasks, result.plan, result.services, result.publications, result.legacyBriefing]
+  if (!ids.every(validCollectionIds)) return null
+  const leadIds = new Set(result.leads.map(lead => lead.id))
+  const projectIds = new Set(result.projects.map(project => project.id))
+  const serviceIds = new Set(result.services.map(service => service.id))
+  if (!result.leads.every(lead => (!lead.serviceId || serviceIds.has(lead.serviceId)) && (!lead.convertedProjectId || projectIds.has(lead.convertedProjectId))) ||
+      !result.projects.every(project => (!project.serviceId || serviceIds.has(project.serviceId)) && (!project.sourceLeadId || leadIds.has(project.sourceLeadId))) ||
+      !result.transactions.every(tx => !tx.projectId || projectIds.has(tx.projectId)) ||
+      !result.tasks.every(task => !task.projectId || projectIds.has(task.projectId))) return null
+  attachEmptyProjectBriefings(result)
+  return result
+}
+
+/** Reads current data or v1/v2/v3 backups and returns a normalized v4 workspace. */
 export function migrateWorkspace(input: unknown): Workspace {
   if (!object(input)) throw new Error('Backup inválido ou versão incompatível.')
-  if (isValidWorkspaceV3(input)) {
-    return {
-      schemaVersion: 3,
-      leads: input.leads.map(({ id, name, contact, service, serviceId, convertedProjectId, stage, value, notes, createdAt }) => ({ id, name, contact, service, serviceId, convertedProjectId, stage, value, notes, createdAt })),
-      projects: input.projects.map(({ id, name, client, serviceId, sourceLeadId, status, deadline, value, createdAt }) => ({ id, name, client, serviceId, sourceLeadId, status, deadline, value, createdAt })),
-      transactions: input.transactions.map(({ id, description, kind, amount, date, projectId, createdAt }) => ({ id, description, kind, amount, date, projectId, createdAt })),
-      tasks: input.tasks.map(({ id, title, done, projectId, createdAt }) => ({ id, title, done, projectId, createdAt })),
-      plan: input.plan.map(({ id, week, title, goal, priority, status, hours, nextStep, notes }) => ({ id, week, title, goal, priority, status, hours, nextStep, notes })),
-      services: input.services.map(({ id, name, hours, hourlyRate, extras, contingency, scope, exclusions, availability }) => ({ id, name, hours, hourlyRate, extras, contingency, scope, exclusions, availability })),
-      publications: input.publications.map(({ id, week, channel, topic, copy, audience, status, result, url }) => ({ id, week, channel, topic, copy, audience, status, result, url })),
-      briefing: input.briefing.map(({ id, phase, question, reason, required, answer, nextAction, notes }) => ({ id, phase, question, reason, required, answer, nextAction, notes })),
-    }
-  }
-  const migrated = input.schemaVersion === 1 ? migrateV1(input) : input.schemaVersion === 2 ? migrateV2(input) : null
+  if (isValidWorkspaceV4(input)) return clone(input)
+  let migrated: Workspace | null = null
+  if (input.schemaVersion === 1) migrated = migrateV1(input)
+  else if (input.schemaVersion === 2) migrated = migrateV2(input)
+  else if (input.schemaVersion === 3) migrated = migrateV3(input)
   if (!migrated) throw new Error('Backup inválido ou versão incompatível.')
+  if (!isValidWorkspaceV4(migrated)) throw new Error('Backup inválido ou versão incompatível.')
   return migrated
 }
 
@@ -185,9 +329,9 @@ export function readWorkspace(storage?: StoragePort): WorkspaceLoadResult {
     try {
       const raw: unknown = JSON.parse(serialized)
       const workspace = migrateWorkspace(raw)
-      const version = object(raw) && (raw.schemaVersion === 1 || raw.schemaVersion === 2) ? raw.schemaVersion : null
+      const version = object(raw) && [1, 2, 3].includes(Number(raw.schemaVersion)) ? Number(raw.schemaVersion) : null
       if (version !== null) {
-        try { writeWorkspace(workspace, storage) } catch { warning = 'Os dados foram carregados, mas não foi possível gravar a migração v3.' }
+        try { writeWorkspace(workspace, storage) } catch { warning = 'Os dados foram carregados, mas não foi possível gravar a migração v4.' }
       }
       return { workspace, migratedFrom: version, warning }
     } catch {
@@ -219,6 +363,7 @@ export function convertOpportunityToProject(
   input: ProjectConversionInput,
   id: string,
   createdAt = new Date().toISOString(),
+  createId: () => string = () => crypto.randomUUID(),
 ): Project {
   const lead = workspace.leads.find(item => item.id === leadId)
   if (!lead) throw new Error('A oportunidade não foi encontrada.')
@@ -228,18 +373,24 @@ export function convertOpportunityToProject(
   const name = input.name.trim()
   const client = input.client.trim()
   if (!name || !client || !Number.isFinite(input.value) || input.value < 0) throw new Error('Revise nome, cliente e valor combinado do projeto.')
+  const service = workspace.services.find(item => item.id === lead.serviceId) ??
+    workspace.services.find(item => item.name.trim().toLocaleLowerCase('pt-BR') === lead.service.trim().toLocaleLowerCase('pt-BR'))
+  const template = workspace.briefingTemplates.find(item => item.id === service?.briefingTemplateId) ??
+    workspace.briefingTemplates.find(item => item.id === DEFAULT_BRIEFING_TEMPLATE_ID) ?? workspace.briefingTemplates[0]
+  if (!template) throw new Error('Cadastre um modelo de briefing antes de converter a oportunidade.')
+  const briefingId = createId()
   const project: Project = {
-    id,
-    name,
-    client,
-    serviceId: lead.serviceId,
-    sourceLeadId: lead.id,
-    status: input.status,
-    deadline: input.deadline,
-    value: input.value,
-    createdAt,
+    id, name, client, serviceId: service?.id ?? null, sourceLeadId: lead.id, briefingId,
+    status: input.status, deadline: input.deadline, value: input.value, createdAt,
   }
+  const briefing = createProjectBriefing(project.id, template, briefingId, createdAt)
+  const tasks: Task[] = (service?.taskTemplates ?? genericTasks).filter(title => title.trim()).map(title => ({
+    id: createId(), title: title.trim(), done: false, projectId: project.id, createdAt,
+  }))
   workspace.projects.unshift(project)
+  workspace.projectBriefings.unshift(briefing)
+  workspace.tasks.unshift(...tasks)
+  lead.serviceId = service?.id ?? lead.serviceId
   lead.convertedProjectId = project.id
   lead.stage = 'ganho'
   return project
