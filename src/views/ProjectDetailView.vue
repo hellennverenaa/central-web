@@ -30,6 +30,10 @@ const editingTaskId = ref<string | null>(null)
 const editingTransactionId = ref<string | null>(null)
 const error = ref('')
 const feedback = ref('')
+const abaAtiva = ref<'resumo' | 'briefing' | 'tarefas' | 'financeiro'>('resumo')
+const secaoBriefingAtiva = ref('')
+const tarefasPendentes = computed(() => tasks.value.filter(task => !task.done).length)
+const valorAReceber = computed(() => Math.max(0, (project.value?.value ?? 0) - received.value))
 const projectForm = reactive({ name: '', client: '', serviceId: '', status: 'planejado' as ProjectStatus, deadline: todayLocal(), value: 0 })
 const taskForm = reactive({ title: '' })
 const transactionForm = reactive({ description: '', kind: 'entrada' as TransactionType, amount: 0, date: todayLocal() })
@@ -39,6 +43,7 @@ watch(() => projectBriefing.value?.id, () => {
   if (projectBriefing.value) Object.assign(briefingAnswers, JSON.parse(JSON.stringify(projectBriefing.value.answers)) as Record<string, BriefingAnswer>)
   briefingError.value = ''
   briefingFeedback.value = ''
+  secaoBriefingAtiva.value = projectBriefing.value?.sections[0]?.id ?? ''
 }, { immediate: true })
 
 function visibleQuestion(question: BriefingQuestionDefinition) { return isQuestionVisible(question, briefingAnswers) }
@@ -135,13 +140,53 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
       <article class="surface project-value-card"><span>PREÇO COMBINADO</span><strong>{{ brl(project.value) }}</strong><small>Valor do projeto; não representa recebimento.</small></article>
       <article class="surface project-value-card"><span>RECEBIDO</span><strong class="positive">{{ brl(received) }}</strong><small>{{ transactions.filter(item => item.kind === 'entrada').length }} entrada(s) vinculada(s)</small></article>
       <article class="surface project-value-card"><span>DESPESAS</span><strong class="negative">{{ brl(spent) }}</strong><small>{{ transactions.filter(item => item.kind === 'saida').length }} saída(s) vinculada(s)</small></article>
-      <article class="surface project-value-card"><span>SALDO DO PROJETO</span><strong :class="received - spent < 0 ? 'negative' : 'positive'">{{ brl(received - spent) }}</strong><small>Recebimentos menos despesas registradas.</small></article>
+      <article class="surface project-value-card"><span>AINDA A RECEBER</span><strong>{{ brl(valorAReceber) }}</strong><small>Preço combinado menos recebimentos; não é saldo em caixa.</small></article>
     </div>
 
     <div class="project-relations surface"><div><span class="section-kicker">OPORTUNIDADE DE ORIGEM</span><template v-if="sourceLead"><button class="table-link strong" @click="emit('openLead', sourceLead.id)">{{ sourceLead.name }} <ArrowRight :size="14"/></button><small>Estimativa do pipeline: {{ brl(sourceLead.value) }}</small></template><span v-else class="relation-empty">Projeto criado sem oportunidade vinculada.</span></div><div><span class="section-kicker">SERVIÇO</span><template v-if="service"><button class="table-link strong" @click="emit('openService', service.id)">{{ service.name }} <ArrowRight :size="14"/></button><small>Referência simulada: {{ brl(serviceSuggestion(service)) }}</small></template><span v-else class="relation-empty">Nenhum serviço vinculado.</span></div></div>
 
-    <section v-if="projectBriefing" class="surface project-briefing"><header class="project-briefing-header"><div><p class="section-kicker">BRIEFING DESTE PROJETO</p><h2>{{ projectBriefing.templateName }}</h2><p>{{ briefingProgressValue.complete }} de {{ briefingProgressValue.total }} campos obrigatórios respondidos</p></div><span class="brief-tag">{{ projectBriefing.sections.length }} seções</span></header>
-      <form @submit.prevent="saveBriefing"><section v-for="section in projectBriefing.sections" :key="section.id" class="project-briefing-section"><div class="project-briefing-section-heading"><h3>{{ section.title }}</h3><p v-if="section.description">{{ section.description }}</p></div><div class="project-briefing-questions">
+    <nav class="project-tabs" aria-label="Áreas do projeto">
+      <button class="project-tab" :class="{ ativo: abaAtiva === 'resumo' }" :aria-current="abaAtiva === 'resumo' ? 'page' : undefined" @click="abaAtiva = 'resumo'">Resumo</button>
+      <button class="project-tab" :class="{ ativo: abaAtiva === 'briefing' }" :aria-current="abaAtiva === 'briefing' ? 'page' : undefined" @click="abaAtiva = 'briefing'">Briefing <span>{{ briefingProgressValue.complete }}/{{ briefingProgressValue.total }}</span></button>
+      <button class="project-tab" :class="{ ativo: abaAtiva === 'tarefas' }" :aria-current="abaAtiva === 'tarefas' ? 'page' : undefined" @click="abaAtiva = 'tarefas'">Tarefas <span>{{ tarefasPendentes }} pendentes</span></button>
+      <button class="project-tab" :class="{ ativo: abaAtiva === 'financeiro' }" :aria-current="abaAtiva === 'financeiro' ? 'page' : undefined" @click="abaAtiva = 'financeiro'">Financeiro</button>
+    </nav>
+
+    <section v-if="abaAtiva === 'resumo'" class="project-overview" aria-label="Resumo e próximos passos">
+      <div class="surface project-next-step">
+        <p class="section-kicker">PRÓXIMA AÇÃO SUGERIDA</p>
+        <template v-if="missingBriefingAnswers > 0">
+          <h2>Complete o briefing</h2>
+          <p>Faltam {{ missingBriefingAnswers }} resposta(s) obrigatória(s). O questionário já está preparado para este projeto.</p>
+          <button class="btn btn-dark" @click="abaAtiva = 'briefing'">Continuar briefing</button>
+        </template>
+        <template v-else-if="tarefasPendentes > 0">
+          <h2>Avance na produção</h2>
+          <p>Você tem {{ tarefasPendentes }} tarefa(s) pendente(s) neste projeto.</p>
+          <button class="btn btn-dark" @click="abaAtiva = 'tarefas'">Ver tarefas</button>
+        </template>
+        <template v-else-if="valorAReceber > 0">
+          <h2>Acompanhe o pagamento</h2>
+          <p>Há {{ brl(valorAReceber) }} do valor combinado ainda não registrado como recebido.</p>
+          <button class="btn btn-dark" @click="abaAtiva = 'financeiro'">Ver financeiro</button>
+        </template>
+        <template v-else>
+          <h2>Atividades em dia</h2>
+          <p>Revise as informações do projeto e acompanhe a entrega.</p>
+        </template>
+      </div>
+      <div class="project-overview-shortcuts">
+        <button class="surface project-overview-option" @click="abaAtiva = 'briefing'"><b>Briefing</b><span>{{ briefingProgressValue.complete }} de {{ briefingProgressValue.total }} respostas obrigatórias</span><small>Abrir questionário →</small></button>
+        <button class="surface project-overview-option" @click="abaAtiva = 'tarefas'"><b>Produção</b><span>{{ tasks.length - tarefasPendentes }} de {{ tasks.length }} tarefas concluídas</span><small>Abrir tarefas →</small></button>
+        <button class="surface project-overview-option" @click="abaAtiva = 'financeiro'"><b>Financeiro</b><span>{{ brl(valorAReceber) }} a receber</span><small>Saldo realizado: {{ brl(received - spent) }} →</small></button>
+      </div>
+    </section>
+
+    <section v-if="abaAtiva === 'briefing' && projectBriefing" class="surface project-briefing"><header class="project-briefing-header"><div><p class="section-kicker">BRIEFING DESTE PROJETO</p><h2>{{ projectBriefing.templateName }}</h2><p>{{ briefingProgressValue.complete }} de {{ briefingProgressValue.total }} campos obrigatórios respondidos</p></div><span class="brief-tag">{{ projectBriefing.sections.length }} seções</span></header>
+      <nav class="briefing-sections-nav" aria-label="Seções do questionário">
+        <button v-for="(secao, indice) in projectBriefing.sections" :key="secao.id" class="briefing-section-button" :class="{ ativo: secaoBriefingAtiva === secao.id }" :aria-current="secaoBriefingAtiva === secao.id ? 'step' : undefined" @click="secaoBriefingAtiva = secao.id">{{ indice + 1 }}. {{ secao.title }}</button>
+      </nav>
+      <form @submit.prevent="saveBriefing"><section v-for="section in projectBriefing.sections" v-show="secaoBriefingAtiva === section.id" :key="section.id" class="project-briefing-section"><div class="project-briefing-section-heading"><h3>{{ section.title }}</h3><p v-if="section.description">{{ section.description }}</p></div><div class="project-briefing-questions">
         <template v-for="question in section.questions" :key="question.id"><fieldset v-if="visibleQuestion(question)" class="project-briefing-question"><legend>{{ question.label }} <span v-if="question.required" class="required-mark">Obrigatória</span></legend>
           <textarea v-if="question.type === 'long-text'" :id="`answer-${question.id}`" :value="scalarAnswer(question.id)" rows="3" @input="setScalarAnswer(question.id, $event)"/>
           <select v-else-if="question.type === 'single-choice' || question.type === 'yes-no'" :id="`answer-${question.id}`" :value="scalarAnswer(question.id)" @change="setScalarAnswer(question.id, $event)"><option value="">Selecione uma opção</option><option v-for="option in (question.type === 'yes-no' ? ['Sim', 'Não'] : question.options)" :key="option" :value="option">{{ option }}</option></select>
@@ -151,13 +196,13 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
         </fieldset></template>
       </div></section><p v-if="briefingError" class="form-error" role="alert">{{ briefingError }}</p><p v-if="briefingFeedback" class="inline-notice" role="status">{{ briefingFeedback }}</p><div class="project-briefing-actions"><small>Rascunhos podem ser salvos antes de preencher todos os campos obrigatórios.</small><button class="btn btn-dark" type="submit">Salvar respostas</button></div></form>
     </section>
-    <div v-else class="surface empty compact"><ClipboardList :size="22"/><b>Briefing não encontrado</b><p>Confira o vínculo do projeto ou escolha um modelo em Serviços.</p></div>
+    <div v-else-if="abaAtiva === 'briefing'" class="surface empty compact"><ClipboardList :size="22"/><b>Briefing não encontrado</b><p>Confira o vínculo do projeto ou escolha um modelo em Serviços.</p></div>
 
-    <div class="detail-grid">
-      <section class="surface detail-section"><div class="section-top"><div><p class="section-kicker">PRODUÇÃO</p><h2>Tarefas</h2></div><button class="btn btn-outline btn-slim" @click="createTask"><Plus :size="15"/> Nova tarefa</button></div>
+    <div v-if="abaAtiva === 'tarefas' || abaAtiva === 'financeiro'" class="detail-grid project-tab-content">
+      <section v-if="abaAtiva === 'tarefas'" class="surface detail-section"><div class="section-top"><div><p class="section-kicker">PRODUÇÃO</p><h2>Tarefas</h2></div><button class="btn btn-outline btn-slim" @click="createTask"><Plus :size="15"/> Nova tarefa</button></div>
         <div v-if="tasks.length" class="detail-list"><article v-for="task in tasks" :key="task.id" class="detail-row" :class="{ 'done-task': task.done }"><label><input :checked="task.done" type="checkbox" @change="toggleTask(task.id, ($event.target as HTMLInputElement).checked)"/><span>{{ task.title }}</span></label><div class="row-actions"><button class="icon-button" :aria-label="`Editar ${task.title}`" @click="editTask(task.id)"><Pencil :size="15"/></button><button class="icon-button danger" :aria-label="`Excluir ${task.title}`" @click="dropTask(task.id)"><Trash2 :size="15"/></button></div></article></div><div v-else class="empty compact"><CheckCircle2 :size="22"/><b>Nenhuma tarefa vinculada</b><p>Crie a próxima ação deste projeto.</p></div>
       </section>
-      <section class="surface detail-section"><div class="section-top"><div><p class="section-kicker">FLUXO DE CAIXA</p><h2>Recebimentos e despesas</h2></div><div class="row-actions"><button class="btn btn-outline btn-slim" @click="createTransaction('entrada')"><ArrowDownLeft :size="15"/> Recebimento</button><button class="btn btn-outline btn-slim" @click="createTransaction('saida')"><ArrowUpRight :size="15"/> Despesa</button></div></div>
+      <section v-if="abaAtiva === 'financeiro'" class="surface detail-section"><div class="section-top"><div><p class="section-kicker">FLUXO DE CAIXA</p><h2>Recebimentos e despesas</h2></div><div class="row-actions"><button class="btn btn-outline btn-slim" @click="createTransaction('entrada')"><ArrowDownLeft :size="15"/> Recebimento</button><button class="btn btn-outline btn-slim" @click="createTransaction('saida')"><ArrowUpRight :size="15"/> Despesa</button></div></div>
         <div v-if="transactions.length" class="detail-list"><article v-for="transaction in transactions" :key="transaction.id" class="detail-row"><div class="transaction-description"><span class="pill" :class="transaction.kind">{{ transaction.kind === 'entrada' ? 'Entrada' : 'Saída' }}</span><div><b>{{ transaction.description }}</b><small>{{ dateBR(transaction.date) }}</small></div></div><strong :class="transaction.kind === 'entrada' ? 'positive' : 'negative'">{{ brl(transaction.amount) }}</strong><div class="row-actions"><button class="icon-button" :aria-label="`Editar ${transaction.description}`" @click="editTransaction(transaction)"><Pencil :size="15"/></button><button class="icon-button danger" :aria-label="`Excluir ${transaction.description}`" @click="dropTransaction(transaction.id)"><Trash2 :size="15"/></button></div></article></div><div v-else class="empty compact"><Wallet :size="22"/><b>Nenhum lançamento vinculado</b><p>Registre recebimentos ou despesas deste projeto.</p></div>
       </section>
     </div>
