@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { LayoutDashboard, UsersRound, FolderKanban, Wallet, CheckSquare2, DatabaseBackup, Menu, X, ArrowUpRight, Sparkles, LockKeyhole, CalendarRange, BadgeDollarSign, Megaphone, ClipboardList } from 'lucide-vue-next'
+import { LayoutDashboard, UsersRound, FolderKanban, Wallet, CheckSquare2, DatabaseBackup, Menu, X, ArrowUpRight, Sparkles, LockKeyhole, CalendarRange, BadgeDollarSign, Megaphone, ClipboardList, Plus } from 'lucide-vue-next'
 import DashboardView from './views/DashboardView.vue'
 import LeadsView from './views/LeadsView.vue'
 import ProjectsView from './views/ProjectsView.vue'
@@ -22,6 +22,7 @@ const selectedProjectId = ref('')
 const projectNotice = ref('')
 const focusedLeadId = ref('')
 const focusedServiceId = ref('')
+const pedidoNovoAtendimento = ref(0)
 const nav = [
   { id: 'dashboard' as MainPage, text: 'Visão geral', icon: LayoutDashboard },
   { id: 'plan' as MainPage, text: 'Plano de lançamento', icon: CalendarRange },
@@ -34,9 +35,17 @@ const nav = [
   { id: 'tasks' as MainPage, text: 'Tarefas', icon: CheckSquare2 },
   { id: 'data' as MainPage, text: 'Dados & backup', icon: DatabaseBackup },
 ]
+const gruposMenu = [
+  { titulo: 'ACOMPANHAR', itens: nav.filter(item => ['dashboard', 'plan'].includes(item.id)) },
+  { titulo: 'ATENDER E PRODUZIR', itens: nav.filter(item => ['leads', 'projects', 'tasks'].includes(item.id)) },
+  { titulo: 'ORGANIZAR O NEGÓCIO', itens: nav.filter(item => ['finance', 'publications'].includes(item.id)) },
+  { titulo: 'MODELOS E DADOS', itens: nav.filter(item => ['services', 'briefing', 'data'].includes(item.id)) },
+]
 const title = computed(() => page.value === 'project-detail' ? state.projects.find(project => project.id === selectedProjectId.value)?.name || 'Detalhe do projeto' : nav.find(item => item.id === page.value)?.text || 'Central')
 const date = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
 function navigate(next: MainPage) { page.value = next; mobileNav.value = false }
+function iniciarAtendimento() { pedidoNovoAtendimento.value += 1; navigate('leads') }
+function atendimentoIniciado() { pedidoNovoAtendimento.value = 0 }
 function openProject(id: string, notice = '') { selectedProjectId.value = id; projectNotice.value = notice; page.value = 'project-detail'; mobileNav.value = false }
 function openLead(id: string) { focusedLeadId.value = id; page.value = 'leads'; mobileNav.value = false }
 function openService(id: string) { focusedServiceId.value = id; page.value = 'services'; mobileNav.value = false }
@@ -51,12 +60,15 @@ function openService(id: string) { focusedServiceId.value = id; page.value = 'se
         <div><strong>central<span class="brand-dot">.</span></strong><small>WORKSPACE / 01</small></div>
         <button class="icon-button close-mobile" aria-label="Fechar menu" @click="mobileNav = false"><X :size="19"/></button>
       </div>
-      <p class="nav-eyebrow">MENU PRINCIPAL</p>
+      <button class="btn btn-dark sidebar-primary-action" @click="iniciarAtendimento"><Plus :size="17"/> Novo atendimento</button>
       <nav aria-label="Navegação principal" class="nav">
-        <button v-for="item in nav" :key="item.id" class="nav-item" :class="{ selected: page === item.id }" :aria-current="page === item.id ? 'page' : undefined" @click="navigate(item.id)">
-          <component :is="item.icon" :size="18" :stroke-width="1.9" /> <span>{{ item.text }}</span>
-          <span v-if="page === item.id" class="nav-marker"></span>
-        </button>
+        <div v-for="grupo in gruposMenu" :key="grupo.titulo" class="nav-group">
+          <p class="nav-group-label">{{ grupo.titulo }}</p>
+          <button v-for="item in grupo.itens" :key="item.id" class="nav-item" :class="{ selected: page === item.id || (page === 'project-detail' && item.id === 'projects') }" :aria-current="page === item.id ? 'page' : undefined" @click="navigate(item.id)">
+            <component :is="item.icon" :size="18" :stroke-width="1.9" /> <span>{{ item.text }}</span>
+            <span v-if="page === item.id" class="nav-marker"></span>
+          </button>
+        </div>
       </nav>
       <div class="sidebar-bottom">
         <div class="sidebar-quote"><div class="tiny-icon"><ArrowUpRight :size="16" /></div><b>Do código ao negócio.</b><p>Um espaço só seu para organizar o que está construindo.</p></div>
@@ -71,10 +83,10 @@ function openService(id: string) { focusedServiceId.value = id; page.value = 'se
       </header>
       <main class="main-content">
         <p v-if="persistenceError" class="storage-error" role="alert">{{ persistenceError }}</p>
-        <DashboardView v-if="page === 'dashboard'" @go="navigate" @open-project="openProject" />
+        <DashboardView v-if="page === 'dashboard'" @go="navigate" @open-project="openProject" @iniciar-atendimento="iniciarAtendimento" />
         <PlanView v-else-if="page === 'plan'" />
         <ServicesView v-else-if="page === 'services'" :focus-service-id="focusedServiceId" />
-        <LeadsView v-else-if="page === 'leads'" :focus-lead-id="focusedLeadId" @open-project="openProject" @open-service="openService" />
+        <LeadsView v-else-if="page === 'leads'" :focus-lead-id="focusedLeadId" :pedido-novo-atendimento="pedidoNovoAtendimento" @atendimento-iniciado="atendimentoIniciado" @open-project="openProject" @open-service="openService" />
         <ProjectDetailView v-else-if="page === 'project-detail'" :project-id="selectedProjectId" :notice="projectNotice" @go="navigate" @open-lead="openLead" @open-service="openService" />
         <ProjectsView v-else-if="page === 'projects'" @open-project="openProject" />
         <FinanceView v-else-if="page === 'finance'" @open-project="openProject" />
