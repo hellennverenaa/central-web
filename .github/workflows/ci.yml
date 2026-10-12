@@ -11,11 +11,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      # After generating and committing package-lock.json, switch install to `npm ci`.
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-      - name: Unit pricing checks
-        run: npm run test:pricing
+      - name: Run all unit and domain tests
+        run: npm test
       - name: Typecheck
         run: npm run typecheck
       - name: Build
