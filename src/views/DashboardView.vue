@@ -5,7 +5,7 @@ import { state, metrics } from '../lib/store'
 import { brl, dateBR, leadLabels, projectLabels } from '../lib/format'
 import type { LeadStage, ProjectStatus } from '../lib/types'
 
-defineEmits<{ go: [page: 'dashboard' | 'leads' | 'projects' | 'finance' | 'tasks' | 'data' | 'plan' | 'services' | 'publications' | 'briefing']; openProject: [id: string] }>()
+defineEmits<{ go: [page: 'dashboard' | 'leads' | 'projects' | 'finance' | 'tasks' | 'data' | 'plan' | 'services' | 'publications' | 'briefing']; openProject: [id: string]; iniciarAtendimento: [] }>()
 const openProjects = computed(() => state.projects.filter(p => p.status !== 'entregue').slice(0, 4))
 const freshLeads = computed(() => state.leads.filter(l => l.stage !== 'perdido').slice(0, 4))
 const nextPlan = computed(() => state.plan.filter(t => t.status !== 'concluido').slice(0,3))
@@ -14,7 +14,7 @@ const greeting = new Date().getHours() < 12 ? 'Bom dia' : new Date().getHours() 
 
 <template>
   <div class="view-enter">
-    <div class="page-intro overview-intro"><div><p class="eyebrow"><span class="eyebrow-line"></span> PAINEL DE CONTROLE</p><h1>{{ greeting }} <span class="wave">✳</span></h1><p class="page-subtitle">Tudo o que importa para o seu estúdio, em um só lugar.</p></div><button class="btn btn-dark" @click="$emit('go','leads')">Nova oportunidade <ArrowUpRight :size="17"/></button></div>
+    <div class="page-intro overview-intro"><div><p class="eyebrow"><span class="eyebrow-line"></span> PAINEL DE CONTROLE</p><h1>{{ greeting }} <span class="wave">✳</span></h1><p class="page-subtitle">Tudo o que importa para o seu estúdio, em um só lugar.</p></div><button class="btn btn-dark" @click="$emit('iniciarAtendimento')">Novo atendimento <ArrowUpRight :size="17"/></button></div>
     <div class="stats-grid">
       <article class="stat-card"><div class="stat-head"><span>Oportunidades abertas</span><div class="stat-icon tint-purple"><UsersRound :size="18" /></div></div><div class="stat-val">{{ metrics.leads.toString().padStart(2, '0') }}</div><small>Contatos em negociação</small></article>
       <article class="stat-card"><div class="stat-head"><span>Projetos ativos</span><div class="stat-icon tint-blue"><FolderKanban :size="18" /></div></div><div class="stat-val">{{ metrics.activeProjects.toString().padStart(2, '0') }}</div><small>Em planejamento ou execução</small></article>
