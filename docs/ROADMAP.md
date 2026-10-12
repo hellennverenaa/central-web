@@ -8,9 +8,14 @@
 - [x] Catálogo e simulador de preços (7 serviços)
 - [x] Calendário de divulgação (7 publicações)
 - [x] Roteiro de briefing (13 perguntas)
-- [x] Estado local e backup JSON v2 com leitura de v1
+- [x] Estado local e backup JSON v3 com migração de v1/v2
+- [x] Oportunidades, serviços, projetos, tarefas e transações conectados por IDs no frontend
+- [x] Conversão de oportunidade com preço combinado separado da estimativa e do caixa
+- [x] Detalhe do projeto com edição, tarefas, recebimentos e despesas
+- [x] Testes de domínio, conversão, persistência e migração
 - [x] GitHub Actions para checagem de tipos e build
-- [ ] Executar instalação, typecheck, build e QA visual **em ambiente online**
+- [x] Executar testes, typecheck e build no workspace local
+- [ ] Executar instalação limpa e QA visual em desktop/mobile **em ambiente online**
 
 ## Próximo sprint — backend tradicional, sem Supabase obrigatório
 
@@ -24,7 +29,7 @@
 
 ## Após o backend — operação comercial
 
-- [ ] Converter lead ganho em projeto
+- [x] Converter oportunidade em projeto no protótipo local; uso comercial real depende de backend e autorização
 - [ ] Gerar proposta/orçamento com escopo e rodadas de revisão
 - [ ] Registrar pagamento parcial e contas a receber (distinto de caixa)
 - [ ] Vincular briefing a cada projeto com controle de acesso

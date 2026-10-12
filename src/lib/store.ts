@@ -1,71 +1,35 @@
-import { reactive, computed, watch } from 'vue'
-import type { Lead, Project, Transaction, Workspace, PlanItem, Service, Publication, BriefingQuestion } from './types'
+import { computed, reactive, ref, watch } from 'vue'
+import type { BriefingQuestion, Lead, PlanItem, Project, Publication, Service, Task, Transaction, Workspace } from './types'
 import { todayLocal } from './format'
-import { initialPlan, initialServices, initialPublications, initialBriefing } from './catalog'
+import { convertOpportunityToProject, createInitialWorkspace, migrateWorkspace, readWorkspace, writeWorkspace, type ProjectConversionInput, type StoragePort } from './workspace.ts'
 
-const STORAGE_KEY = 'central-web:workspace:v2'
-const LEGACY_STORAGE_KEY = 'central-web:workspace:v1'
-const cloneTemplates = <T>(data: readonly T[]): T[] => JSON.parse(JSON.stringify(data)) as T[]
-const initial = (): Workspace => ({
-  schemaVersion: 2, leads: [], projects: [], transactions: [], tasks: [],
-  plan: cloneTemplates<PlanItem>(initialPlan.map(x => ({ ...x }))),
-  services: cloneTemplates<Service>(initialServices.map(x => ({ ...x }))),
-  publications: cloneTemplates<Publication>(initialPublications.map(x => ({ ...x }))),
-  briefing: cloneTemplates<BriefingQuestion>(initialBriefing.map(x => ({ ...x }))),
-})
-const object = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x)
-const str = (x: unknown): x is string => typeof x === 'string'
-const num = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x) && x >= 0
-const isArray = (x: unknown, validate: (row: Record<string, unknown>) => boolean): boolean =>
-  Array.isArray(x) && x.length <= 3000 && x.every((row: unknown) => object(row) && validate(row))
-const validLead = (x: Record<string, unknown>) => ['id','name','contact','service','notes','createdAt'].every(k => str(x[k])) && ['novo','conversa','proposta','ganho','perdido'].includes(String(x.stage)) && num(x.value)
-const validProject = (x: Record<string, unknown>) => ['id','name','client','deadline','createdAt'].every(k => str(x[k])) && ['planejado','andamento','revisao','entregue'].includes(String(x.status)) && num(x.value)
-const validTransaction = (x: Record<string, unknown>) => ['id','description','date','createdAt'].every(k => str(x[k])) && ['entrada','saida'].includes(String(x.kind)) && num(x.amount)
-const validTask = (x: Record<string, unknown>) => ['id','title','createdAt'].every(k => str(x[k])) && typeof x.done === 'boolean'
-const validPlan = (x: Record<string, unknown>) => ['id','week','title','goal','priority','nextStep','notes'].every(k=>str(x[k])) && ['nao-iniciado','andamento','concluido'].includes(String(x.status)) && num(x.hours)
-const validService = (x: Record<string, unknown>) => ['id','name','scope','exclusions','availability'].every(k=>str(x[k])) && ['hours','hourlyRate','extras','contingency'].every(k=>num(x[k])) && Number(x.contingency) <= 3
-const validPublication = (x: Record<string, unknown>) => ['id','week','channel','topic','copy','audience','result','url'].every(k=>str(x[k])) && ['planejado','produzindo','publicado'].includes(String(x.status))
-const validBriefing = (x: Record<string, unknown>) => ['id','phase','question','reason','required','answer','nextAction','notes'].every(k=>str(x[k]))
-function validLegacy(x: unknown): x is Record<string, unknown> {
-  return object(x) && x.schemaVersion === 1 && isArray(x.leads, validLead) && isArray(x.projects, validProject) && isArray(x.transactions, validTransaction) && isArray(x.tasks, validTask)
-}
-function isWorkspace(x: unknown): x is Workspace {
-  return object(x) && x.schemaVersion === 2 && isArray(x.leads,validLead) && isArray(x.projects,validProject) && isArray(x.transactions,validTransaction) && isArray(x.tasks,validTask) && isArray(x.plan,validPlan) && isArray(x.services,validService) && isArray(x.publications,validPublication) && isArray(x.briefing,validBriefing)
-}
-// Dados importados são projetados somente para os campos conhecidos, sem propriedades extras.
-function normalize(input: unknown): Workspace {
-  if (validLegacy(input)) {
-    const safe = initial()
-    for (const key of ['leads','projects','transactions','tasks'] as const) {
-      // Known v1 structures are checked above and have no changes in v2.
-      ;(safe as unknown as Record<string, unknown>)[key] = JSON.parse(JSON.stringify(input[key]))
-    }
-    return safe
-  }
-  if (!isWorkspace(input)) throw new Error('Backup inválido ou versão incompatível.')
-  return {
-    schemaVersion: 2,
-    leads: input.leads.map(({id,name,contact,service,stage,value,notes,createdAt})=>({id,name,contact,service,stage,value,notes,createdAt})),
-    projects: input.projects.map(({id,name,client,status,deadline,value,createdAt})=>({id,name,client,status,deadline,value,createdAt})),
-    transactions: input.transactions.map(({id,description,kind,amount,date,createdAt})=>({id,description,kind,amount,date,createdAt})),
-    tasks: input.tasks.map(({id,title,done,createdAt})=>({id,title,done,createdAt})),
-    plan: input.plan.map(({id,week,title,goal,priority,status,hours,nextStep,notes})=>({id,week,title,goal,priority,status,hours,nextStep,notes})),
-    services: input.services.map(({id,name,hours,hourlyRate,extras,contingency,scope,exclusions,availability})=>({id,name,hours,hourlyRate,extras,contingency,scope,exclusions,availability})),
-    publications: input.publications.map(({id,week,channel,topic,copy,audience,status,result,url})=>({id,week,channel,topic,copy,audience,status,result,url})),
-    briefing: input.briefing.map(({id,phase,question,reason,required,answer,nextAction,notes})=>({id,phase,question,reason,required,answer,nextAction,notes})),
+function getBrowserStorage(): { storage?: StoragePort; warning: string } {
+  try {
+    if (typeof localStorage === 'undefined') return { warning: typeof window === 'undefined' ? '' : 'O armazenamento local não está disponível neste navegador.' }
+    return { storage: localStorage, warning: '' }
+  } catch {
+    return { warning: 'O navegador bloqueou o armazenamento local. Os dados não podem ser persistidos nesta sessão.' }
   }
 }
-function load(): Workspace {
-  for (const key of [STORAGE_KEY, LEGACY_STORAGE_KEY]) {
-    try {
-      const serialized = localStorage.getItem(key)
-      if (serialized) return normalize(JSON.parse(serialized) as unknown)
-    } catch { /* corrupted storage: fall back to templates */ }
+
+const browserStorage = getBrowserStorage()
+const storage = browserStorage.storage
+const loaded = readWorkspace(storage)
+export const state = reactive<Workspace>(loaded.workspace)
+export const persistenceError = ref(loaded.warning || browserStorage.warning)
+
+function persistNow(): void {
+  if (!storage) return
+  try {
+    writeWorkspace(state, storage)
+    persistenceError.value = ''
+  } catch {
+    persistenceError.value = 'Não foi possível salvar neste navegador. Exporte um backup e confira o espaço disponível.'
   }
-  return initial()
 }
-export const state = reactive<Workspace>(load())
-watch(state, () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } catch { /* storage unavailable */ } }, { deep: true })
+
+watch(state, persistNow, { deep: true })
+
 export const metrics = computed(() => {
   const incomes = state.transactions.filter(t => t.kind === 'entrada').reduce((a, b) => a + b.amount, 0)
   const expenses = state.transactions.filter(t => t.kind === 'saida').reduce((a, b) => a + b.amount, 0)
@@ -75,30 +39,129 @@ export const metrics = computed(() => {
     income: incomes,
     expenses,
     balance: incomes - expenses,
-    pipeline: state.leads.filter(l => !['ganho','perdido'].includes(l.stage)).reduce((a, b) => a + b.value, 0),
-    planDone: state.plan.filter(t=>t.status === 'concluido').length,
+    pipeline: state.leads.filter(l => !['ganho', 'perdido'].includes(l.stage)).reduce((a, b) => a + b.value, 0),
+    planDone: state.plan.filter(t => t.status === 'concluido').length,
     planTotal: state.plan.length,
-    scheduledPosts: state.publications.filter(p=>p.status !== 'publicado').length,
+    scheduledPosts: state.publications.filter(p => p.status !== 'publicado').length,
     serviceCount: state.services.length,
   }
 })
+
 export function uid(): string { return crypto.randomUUID() }
-export function addLead(input: Omit<Lead, 'id' | 'createdAt'>) { state.leads.unshift({ ...input, id: uid(), createdAt: new Date().toISOString() }) }
-export function addProject(input: Omit<Project, 'id' | 'createdAt'>) { state.projects.unshift({ ...input, id: uid(), createdAt: new Date().toISOString() }) }
-export function addTransaction(input: Omit<Transaction, 'id' | 'createdAt'>) { state.transactions.unshift({ ...input, id: uid(), createdAt: new Date().toISOString() }) }
-export function addTask(title: string) { state.tasks.unshift({ id: uid(), title, done: false, createdAt: new Date().toISOString() }) }
-export function addPlan(input: Omit<PlanItem, 'id'>) { state.plan.push({ ...input, id: uid() }) }
-export function addService(input: Omit<Service, 'id'>) { state.services.push({ ...input, id: uid() }) }
-export function addPublication(input: Omit<Publication, 'id'>) { state.publications.push({ ...input, id: uid() }) }
-export function addBriefingQuestion(input: Omit<BriefingQuestion, 'id'>) { state.briefing.push({ ...input, id: uid() }) }
-export function removeItem(key: 'leads' | 'projects' | 'transactions' | 'tasks' | 'plan' | 'services' | 'publications' | 'briefing', id: string) {
-  const collection = state[key]
-  const index = collection.findIndex(item => item.id === id)
-  if (index > -1) collection.splice(index, 1)
+function saved<T>(value: T): T { persistNow(); return value }
+
+export function addLead(input: Omit<Lead, 'id' | 'createdAt' | 'convertedProjectId'>): Lead {
+  if (input.serviceId && !state.services.some(service => service.id === input.serviceId)) throw new Error('O serviço selecionado não existe mais.')
+  const lead: Lead = { ...input, id: uid(), convertedProjectId: null, createdAt: new Date().toISOString() }
+  state.leads.unshift(lead)
+  return saved(lead)
 }
-export function clearAll() { Object.assign(state, initial()) }
-export function importWorkspace(data: unknown) { Object.assign(state, normalize(data)) }
-export function exportWorkspace() {
+
+export function updateLead(id: string, input: Omit<Lead, 'id' | 'createdAt' | 'convertedProjectId'>): Lead {
+  const lead = state.leads.find(item => item.id === id)
+  if (!lead) throw new Error('A oportunidade não foi encontrada.')
+  if (input.serviceId && !state.services.some(service => service.id === input.serviceId)) throw new Error('O serviço selecionado não existe mais.')
+  Object.assign(lead, input)
+  return saved(lead)
+}
+
+export function addProject(input: Omit<Project, 'id' | 'createdAt' | 'sourceLeadId'>): Project {
+  if (input.serviceId && !state.services.some(service => service.id === input.serviceId)) throw new Error('O serviço selecionado não existe mais.')
+  const project: Project = { ...input, sourceLeadId: null, id: uid(), createdAt: new Date().toISOString() }
+  state.projects.unshift(project)
+  return saved(project)
+}
+
+export function updateProject(id: string, input: Omit<Project, 'id' | 'createdAt' | 'sourceLeadId'>): Project {
+  const project = state.projects.find(item => item.id === id)
+  if (!project) throw new Error('O projeto não foi encontrado.')
+  if (input.serviceId && !state.services.some(service => service.id === input.serviceId)) throw new Error('O serviço selecionado não existe mais.')
+  Object.assign(project, input)
+  return saved(project)
+}
+
+export function convertLeadToProject(leadId: string, input: ProjectConversionInput): Project {
+  const project = convertOpportunityToProject(state, leadId, input, uid())
+  return saved(project)
+}
+
+export function addTransaction(input: Omit<Transaction, 'id' | 'createdAt'>): Transaction {
+  if (input.projectId && !state.projects.some(project => project.id === input.projectId)) throw new Error('O projeto selecionado não existe mais.')
+  if (!input.description.trim() || !Number.isFinite(input.amount) || input.amount <= 0 || !input.date) throw new Error('Informe descrição, valor positivo e data para o lançamento.')
+  const transaction: Transaction = { ...input, description: input.description.trim(), id: uid(), createdAt: new Date().toISOString() }
+  state.transactions.unshift(transaction)
+  return saved(transaction)
+}
+
+export function updateTransaction(id: string, input: Omit<Transaction, 'id' | 'createdAt'>): Transaction {
+  const transaction = state.transactions.find(item => item.id === id)
+  if (!transaction) throw new Error('O lançamento não foi encontrado.')
+  if (input.projectId && !state.projects.some(project => project.id === input.projectId)) throw new Error('O projeto selecionado não existe mais.')
+  if (!input.description.trim() || !Number.isFinite(input.amount) || input.amount <= 0 || !input.date) throw new Error('Informe descrição, valor positivo e data para o lançamento.')
+  Object.assign(transaction, { ...input, description: input.description.trim() })
+  return saved(transaction)
+}
+
+export function addTask(title: string, projectId: string | null = null): Task {
+  if (projectId && !state.projects.some(project => project.id === projectId)) throw new Error('O projeto selecionado não existe mais.')
+  if (!title.trim()) throw new Error('Informe o título da tarefa.')
+  const task: Task = { id: uid(), title: title.trim(), done: false, projectId, createdAt: new Date().toISOString() }
+  state.tasks.unshift(task)
+  return saved(task)
+}
+
+export function updateTask(id: string, input: Pick<Task, 'title' | 'done' | 'projectId'>): Task {
+  const task = state.tasks.find(item => item.id === id)
+  if (!task) throw new Error('A tarefa não foi encontrada.')
+  if (input.projectId && !state.projects.some(project => project.id === input.projectId)) throw new Error('O projeto selecionado não existe mais.')
+  if (!input.title.trim()) throw new Error('Informe o título da tarefa.')
+  Object.assign(task, { ...input, title: input.title.trim() })
+  return saved(task)
+}
+
+export function addPlan(input: Omit<PlanItem, 'id'>) { state.plan.push({ ...input, id: uid() }); persistNow() }
+export function addService(input: Omit<Service, 'id'>): Service { const service = { ...input, id: uid() }; state.services.push(service); return saved(service) }
+export function updateService(id: string, input: Omit<Service, 'id'>): Service {
+  const service = state.services.find(item => item.id === id)
+  if (!service) throw new Error('O serviço não foi encontrado.')
+  if (!input.name.trim()) throw new Error('Informe o nome do serviço.')
+  Object.assign(service, input, { name: input.name.trim() })
+  return saved(service)
+}
+export function addPublication(input: Omit<Publication, 'id'>) { state.publications.push({ ...input, id: uid() }); persistNow() }
+export function addBriefingQuestion(input: Omit<BriefingQuestion, 'id'>) { state.briefing.push({ ...input, id: uid() }); persistNow() }
+
+type CollectionKey = 'leads' | 'projects' | 'transactions' | 'tasks' | 'plan' | 'services' | 'publications' | 'briefing'
+export function removeItem(key: CollectionKey, id: string): void {
+  const collection = state[key] as Array<{ id: string }>
+  const index = collection.findIndex(item => item.id === id)
+  if (index < 0) return
+  collection.splice(index, 1)
+  if (key === 'projects') {
+    state.leads.forEach(lead => { if (lead.convertedProjectId === id) lead.convertedProjectId = null })
+    state.tasks.forEach(task => { if (task.projectId === id) task.projectId = null })
+    state.transactions.forEach(transaction => { if (transaction.projectId === id) transaction.projectId = null })
+  } else if (key === 'leads') {
+    state.projects.forEach(project => { if (project.sourceLeadId === id) project.sourceLeadId = null })
+  } else if (key === 'services') {
+    state.leads.forEach(lead => { if (lead.serviceId === id) lead.serviceId = null })
+    state.projects.forEach(project => { if (project.serviceId === id) project.serviceId = null })
+  }
+  persistNow()
+}
+
+export function clearAll(): void {
+  Object.assign(state, createInitialWorkspace())
+  persistNow()
+}
+
+export function importWorkspace(data: unknown): void {
+  const migrated = migrateWorkspace(data)
+  Object.assign(state, migrated)
+  persistNow()
+}
+
+export function exportWorkspace(): void {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -107,16 +170,18 @@ export function exportWorkspace() {
   link.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
-export function loadDemo() {
+
+export function loadDemo(): void {
   const d = todayLocal()
   Object.assign(state, {
-    ...initial(),
+    ...createInitialWorkspace(),
     leads: [
-      { id: uid(), name: 'Barbearia Exemplo', contact: '', service: 'Landing page', stage: 'conversa', value: 850, notes: 'Dados fictícios.', createdAt: new Date().toISOString() },
-      { id: uid(), name: 'Cliente de casamento (demo)', contact: '', service: 'Site de casamento', stage: 'proposta', value: 600, notes: 'Dados fictícios.', createdAt: new Date().toISOString() },
+      { id: uid(), name: 'Barbearia Exemplo', contact: '', service: 'Landing page', serviceId: null, convertedProjectId: null, stage: 'conversa', value: 850, notes: 'Dados fictícios.', createdAt: new Date().toISOString() },
+      { id: uid(), name: 'Cliente de casamento (demo)', contact: '', service: 'Site de casamento', serviceId: null, convertedProjectId: null, stage: 'proposta', value: 600, notes: 'Dados fictícios.', createdAt: new Date().toISOString() },
     ],
-    projects: [{ id: uid(), name: 'Convite digital demonstração', client: 'Portfólio', status: 'andamento', deadline: d, value: 0, createdAt: new Date().toISOString() }],
-    transactions: [{ id: uid(), description: 'Recebimento fictício', kind: 'entrada', amount: 350, date: d, createdAt: new Date().toISOString() }],
-    tasks: [{ id: uid(), title: 'Preparar divulgação do convite', done: false, createdAt: new Date().toISOString() }],
-  })
+    projects: [{ id: uid(), name: 'Convite digital demonstração', client: 'Portfólio', serviceId: null, sourceLeadId: null, status: 'andamento', deadline: d, value: 0, createdAt: new Date().toISOString() }],
+    transactions: [{ id: uid(), description: 'Recebimento fictício', kind: 'entrada', amount: 350, date: d, projectId: null, createdAt: new Date().toISOString() }],
+    tasks: [{ id: uid(), title: 'Preparar divulgação do convite', done: false, projectId: null, createdAt: new Date().toISOString() }],
+  } satisfies Workspace)
+  persistNow()
 }

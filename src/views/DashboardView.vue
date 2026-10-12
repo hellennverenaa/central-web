@@ -5,7 +5,7 @@ import { state, metrics } from '../lib/store'
 import { brl, dateBR, leadLabels, projectLabels } from '../lib/format'
 import type { LeadStage, ProjectStatus } from '../lib/types'
 
-defineEmits<{ go: [page: 'dashboard' | 'leads' | 'projects' | 'finance' | 'tasks' | 'data' | 'plan' | 'services' | 'publications' | 'briefing'] }>()
+defineEmits<{ go: [page: 'dashboard' | 'leads' | 'projects' | 'finance' | 'tasks' | 'data' | 'plan' | 'services' | 'publications' | 'briefing']; openProject: [id: string] }>()
 const openProjects = computed(() => state.projects.filter(p => p.status !== 'entregue').slice(0, 4))
 const freshLeads = computed(() => state.leads.filter(l => l.stage !== 'perdido').slice(0, 4))
 const nextPlan = computed(() => state.plan.filter(t => t.status !== 'concluido').slice(0,3))
@@ -28,7 +28,7 @@ const greeting = new Date().getHours() < 12 ? 'Bom dia' : new Date().getHours() 
     </div>
     <div class="dashboard-grid">
       <section class="surface surface-main"><div class="section-top"><div><p class="section-kicker">ACOMPANHAMENTO</p><h2>Projetos em andamento</h2></div><button class="text-link" @click="$emit('go','projects')">Ver todos <ChevronRight :size="16" /></button></div>
-        <div v-if="openProjects.length" class="stack-list"><div v-for="project in openProjects" :key="project.id" class="project-row"><div class="project-avatar"><FolderKanban :size="18"/></div><div class="project-meta"><b>{{ project.name }}</b><span>{{ project.client }} · prazo {{ dateBR(project.deadline) }}</span></div><span class="pill" :class="project.status">{{ projectLabels[project.status as ProjectStatus] }}</span></div></div>
+        <div v-if="openProjects.length" class="stack-list"><div v-for="project in openProjects" :key="project.id" class="project-row"><div class="project-avatar"><FolderKanban :size="18"/></div><div class="project-meta"><button class="dashboard-row-link" @click="$emit('openProject', project.id)">{{ project.name }}</button><span>{{ project.client }} · prazo {{ dateBR(project.deadline) }}</span></div><span class="pill" :class="project.status">{{ projectLabels[project.status as ProjectStatus] }}</span></div></div>
         <div v-else class="empty compact"><CircleDot :size="23"/><b>Seu primeiro projeto começa aqui.</b><p>Cadastre um trabalho em andamento para acompanhar prazos e entregas.</p><button class="btn btn-outline" @click="$emit('go','projects')">Adicionar projeto</button></div>
       </section>
       <section class="surface"><div class="section-top"><div><p class="section-kicker">PIPELINE COMERCIAL</p><h2>Novos contatos</h2></div><button class="text-link" @click="$emit('go','leads')">Ver CRM <ChevronRight :size="16" /></button></div>

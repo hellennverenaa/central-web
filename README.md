@@ -15,12 +15,12 @@ Aplicação local e individual para organizar o lançamento de um pequeno estúd
 ```bash
 npm install
 npm run typecheck
-npm run test:pricing
+npm test
 npm run dev
 npm run build
 ```
 
-`npm run build` cria a pasta `dist/` quando a checagem de tipos e o Vite terminam sem erro. **Este arquivo não prova que o build foi realizado.** Não conseguimos completar `npm install` no ambiente de geração; rode os comandos localmente e use a CI em `.github/workflows/ci.yml`.
+`npm run build` cria a pasta `dist/` quando a checagem de tipos e o Vite terminam sem erro. Para esta alteração, `npm test`, `npm run typecheck` e `npm run build` foram executados com sucesso no workspace. `npm install` não foi necessário porque as dependências já estavam presentes; o repositório ainda não tem lockfile e uma instalação limpa requer acesso ao registro.
 
 ## Módulos
 
@@ -29,19 +29,21 @@ npm run build
 | Visão geral | Indicadores de pipeline, projetos, saldo, andamento do plano e publicações |
 | Plano de lançamento | 17 ações de 30 dias com semana, prioridade, horas e status editável |
 | Serviços e preços | 7 serviços exemplificativos; simulação dinâmica de piso e arredondamento |
-| Oportunidades | CRM básico para leads |
-| Projetos | Status, clientes e prazos |
-| Financeiro | Entradas, saídas e saldo histórico |
+| Oportunidades | CRM com vínculo a serviço e conversão em projeto |
+| Projetos | Lista e detalhes com oportunidade, serviço, tarefas e caixa vinculados |
+| Financeiro | Entradas e saídas gerais ou associadas a um projeto |
 | Publicações | 7 ideias para Instagram e WhatsApp; calendário, legenda e resultado |
 | Briefing | 13 perguntas de atendimento com fases, justificativa e próximo passo; copiar perguntas |
-| Minha rotina | Checklist pessoal editável |
-| Dados e backup | Exportação/importação JSON v2, restaurar modelos, dados fictícios |
+| Tarefas | Checklist pessoal e tarefas associadas a projetos |
+| Dados e backup | Exportação/importação JSON v3, migração v1/v2, restaurar modelos, dados fictícios |
 
 Os modelos de plano, serviço, publicação e briefing **foram extraídos da planilha original**, sem incluir nomes/contatos de clientes reais. Números no simulador são somente exemplos, **não são pesquisa de mercado ou proposta comercial definitiva**.
 
-## Persistência / atualização da v0.1
+## Persistência / atualização do workspace
 
-O schema de armazenamento agora é `central-web:workspace:v2`. Se houver dados da v0.1 no mesmo navegador/origem e ainda não existir v2, o app tenta migrá-los, preservando as tabelas antigas e acrescentando os novos modelos. A importação de JSON v1 válido também é aceita e acrescenta esses modelos.
+O schema atual é `central-web:workspace:v3`. Na primeira abertura, dados v1 ou v2 são migrados para a nova chave, mantendo os registros antigos e acrescentando vínculos vazios quando eles não existiam. As chaves anteriores ficam preservadas. Backups JSON v1, v2 e v3 são aceitos; backups antigos vinculam uma oportunidade a um serviço somente quando o nome corresponde a um único item do catálogo.
+
+Oportunidades guardam o ID do serviço e do projeto convertido. Projetos guardam o serviço e a oportunidade de origem; tarefas e lançamentos guardam o ID do projeto. Ao excluir uma entidade relacionada, os vínculos restantes são limpos e tarefas/lançamentos ficam preservados. A estimativa comercial, o preço combinado e o dinheiro recebido continuam separados.
 
 Use backup JSON antes de apagar ou importar dados. A ação “Restaurar modelos” substitui o armazenamento por um conjunto limpo de templates e **apaga os registros**.
 
@@ -58,8 +60,9 @@ src/
   App.vue                    navegação
   lib/catalog.ts             modelos extraídos da planilha
   lib/types.ts               contratos do domínio
-  lib/store.ts               armazenamento temporário e migração v1 -> v2
-  views/                     10 páginas da central
+  lib/store.ts               armazenamento temporário e persistência reativa
+  lib/workspace.ts           schema v3, migração e validação de backups
+  views/                     páginas da central
 .github/workflows/ci.yml     verificação em pull request
 ```
 
@@ -71,3 +74,9 @@ Consulte `AGENTS.md`, `docs/PRODUTO.md`, `docs/ROADMAP.md`, `docs/ARQUITETURA.md
 - Documentação alinhada à decisão pelo TypeORM.
 - O CI continua usando `npm install` até que `package-lock.json` seja gerado e versionado. Depois, substituir por `npm ci`.
 - O build completo requer dependências instaladas e ainda deve ser executado localmente.
+
+## Fluxo integrado
+
+- Oportunidades podem ser relacionadas a um serviço do catálogo, editadas e convertidas em projeto com preço combinado confirmado separadamente.
+- O detalhe do projeto reúne serviço, oportunidade de origem, tarefas, recebimentos, despesas e saldo do projeto.
+- Testes de domínio e migração: `npm test`. Checagem de tipos: `npm run typecheck`. Build: `npm run build`.
