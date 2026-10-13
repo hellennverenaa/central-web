@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { ArrowRight, FolderKanban, MessageCircle, Pencil, Plus, Search, Trash2, UsersRound, ListChecks } from 'lucide-vue-next'
+import { ArrowRight, FolderKanban, MessageCircle, Pencil, Plus, Search, Trash2, UsersRound, ListChecks, FileText } from 'lucide-vue-next'
 import { state, addLead, convertLeadToProject, persistenceError, removeItem, updateLead } from '../lib/store'
 import { brl, leadLabels, todayLocal, whatsappHref } from '../lib/format'
 import { initialConversionPrice, serviceSuggestion } from '../lib/pricing'
+import { acceptedPrice, latestRevision, proposalStatusLabel } from '../lib/proposals'
+import LeadProposalView from './LeadProposalView.vue'
 import type { Lead, LeadStage, ProjectStatus } from '../lib/types'
 
 const props = defineProps<{ focusLeadId?: string | null }>()
@@ -11,6 +13,9 @@ const emit = defineEmits<{ openProject: [id: string, notice?: string]; openServi
 const stages: LeadStage[] = ['novo', 'conversa', 'proposta', 'ganho', 'perdido']
 const showForm = ref(false)
 const showConversion = ref(false)
+const proposalLeadId = ref<string | null>(null)
+function proposalFor(id: string) { return state.leadProposals.find(item => item.leadId === id) }
+function acceptedProposalPrice(id: string) { return acceptedPrice(proposalFor(id)) }
 const search = ref('')
 const editingId = ref<string | null>(null)
 const convertingLead = ref<Lead | null>(null)
@@ -63,7 +68,7 @@ function beginConversion(lead: Lead) {
   if (lead.convertedProjectId) { emit('openProject', lead.convertedProjectId); return }
   convertingLead.value = lead
   const service = state.services.find(item => item.id === lead.serviceId) ?? state.services.find(item => item.name.trim().toLocaleLowerCase('pt-BR') === lead.service.trim().toLocaleLowerCase('pt-BR'))
-  Object.assign(conversion, { name: `${lead.service} — ${lead.name}`, client: lead.name, status: 'planejado', deadline: todayLocal(), value: initialConversionPrice(lead.value, service ?? null) })
+  Object.assign(conversion, { name: `${lead.service} — ${lead.name}`, client: lead.name, status: 'planejado', deadline: todayLocal(), value: acceptedProposalPrice(lead.id) ?? initialConversionPrice(lead.value, service ?? null) })
   error.value = ''
   feedback.value = ''
   showConversion.value = true
@@ -111,6 +116,7 @@ watch(() => props.focusLeadId, jumpToLead, { immediate: true })
             <td><select v-model="lead.stage" class="status-select" :class="lead.stage"  :aria-label="`Etapa de ${lead.name}`" :disabled="Boolean(lead.convertedProjectId)" @change="announceStageSaved"><option v-for="stage in stages" :key="stage" :value="stage" :disabled="stage === 'ganho' && !lead.convertedProjectId">{{ leadLabels[stage] }}</option></select></td>
             <td><div class="row-actions">
               <a v-if="whatsappHref(lead.contact)" :href="whatsappHref(lead.contact) || '#'" target="_blank" rel="noopener noreferrer" class="icon-button" :aria-label="`Conversar com ${lead.name} no WhatsApp`"><MessageCircle :size="17"/></a>
+              <button type="button" class="icon-button" :class="{ 'proposal-action-existing': Boolean(proposalFor(lead.id)) }" :aria-label="`Proposta comercial de ${lead.name}`" :title="proposalFor(lead.id) ? `Proposta: ${proposalStatusLabel[latestRevision(proposalFor(lead.id))!.status]}` : 'Criar proposta ou orçamento'" @click="proposalLeadId = lead.id"><FileText :size="16"/></button>
               <button v-if="lead.convertedProjectId" class="icon-button" :aria-label="`Abrir projeto de ${lead.name}`" title="Abrir projeto" @click="openLinkedProject(lead)"><FolderKanban :size="16"/></button>
               <template v-else><button class="icon-button" :aria-label="`Retomar atendimento de ${lead.name}`" title="Retomar no assistente" @click="emit('resumeAttendance', lead.id)"><ListChecks :size="16"/></button><button class="icon-button" :aria-label="`Converter ${lead.name} em projeto`" title="Converter rapidamente em projeto" @click="beginConversion(lead)"><ArrowRight :size="16"/></button></template>
               <button class="icon-button" :aria-label="`Editar ${lead.name}`" @click="edit(lead)"><Pencil :size="16"/></button>
@@ -121,6 +127,8 @@ watch(() => props.focusLeadId, jumpToLead, { immediate: true })
         <div v-else class="empty"><UsersRound :size="27"/><b>{{ search ? 'Nenhum resultado encontrado' : 'Ainda não há oportunidades' }}</b><p>{{ search ? 'Experimente outro termo.' : 'Cadastre uma oportunidade e acompanhe o caminho até o projeto.' }}</p><button v-if="!search" class="btn btn-outline" @click="openCreate">Cadastrar primeira oportunidade</button></div>
       </div>
     </div>
+
+    <LeadProposalView v-if="proposalLeadId" :lead-id="proposalLeadId" @close="proposalLeadId = null"/>
 
     <Teleport to="body"><div v-if="showForm" class="modal-backdrop" @click.self="showForm = false"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="lead-title"><div class="modal-head"><h2 id="lead-title">{{ editingId ? 'Editar oportunidade' : 'Nova oportunidade' }}</h2><button class="icon-button" aria-label="Fechar" @click="showForm = false">✕</button></div>
       <form @submit.prevent="submit"><div class="field"><label for="l-name">Cliente ou negócio *</label><input id="l-name" v-model="form.name" maxlength="120" required autofocus placeholder="Nome do cliente ou negócio"/></div>
@@ -138,6 +146,7 @@ watch(() => props.focusLeadId, jumpToLead, { immediate: true })
       <form @submit.prevent="submitConversion"><div class="notice-box subtle-notice"><div><b>Estimativa do pipeline: {{ brl(convertingLead.value) }}</b><p>O valor informado na oportunidade é usado primeiro. A sugestão do catálogo é apenas uma referência; nenhum recebimento é registrado automaticamente.</p></div></div>
         <div class="field"><label for="c-name">Nome do projeto *</label><input id="c-name" v-model="conversion.name" maxlength="140" required autofocus/></div>
         <div class="field"><label for="c-client">Cliente *</label><input id="c-client" v-model="conversion.client" maxlength="120" required/></div>
+        <div v-if="convertingLead && acceptedProposalPrice(convertingLead.id) !== null" class="conversion-price-reference"><span>Preço da proposta aceita: <b>{{ brl(acceptedProposalPrice(convertingLead.id)!) }}</b></span><button type="button" class="btn btn-outline btn-slim" @click="conversion.value = acceptedProposalPrice(convertingLead!.id)!">Aplicar preço aceito</button></div>
         <div v-if="conversionService" class="conversion-price-reference"><span>Referência do catálogo: <b>{{ brl(serviceSuggestion(conversionService)) }}</b></span><button type="button" class="btn btn-outline btn-slim" @click="conversion.value = serviceSuggestion(conversionService)">Aplicar referência</button></div>
         <div class="conversion-generation-summary"><b>{{ conversionService?.name || convertingLead.service }}</b><span>{{ conversionService?.taskTemplates.length ?? 3 }} tarefa(s) iniciais e {{ state.briefingTemplates.find(template => template.id === conversionService?.briefingTemplateId)?.name || state.briefingTemplates[0]?.name || 'questionário geral' }}</span><small>O projeto ficará ligado à oportunidade original, com contato e observações preservados.</small></div>
         <div class="form-row"><div class="field"><label for="c-value">Preço combinado (R$) · confirme ou ajuste</label><input id="c-value" v-model.number="conversion.value" type="number" min="0" step="0.01" required/></div><div class="field"><label for="c-deadline">Prazo</label><input id="c-deadline" v-model="conversion.deadline" type="date" required/></div></div>
