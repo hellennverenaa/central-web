@@ -1,7 +1,8 @@
 import { computed, reactive, ref, watch } from 'vue'
-import type { BriefingAnswer, BriefingQuestion, BriefingTemplate, Lead, PlanItem, Project, Publication, ProjectBriefing, Service, Task, Transaction, Workspace } from './types'
+import type { BriefingAnswer, BriefingQuestion, BriefingTemplate, Lead, PlanItem, Project, Publication, ProjectBriefing, ProjectMaterial, Service, Task, Transaction, Workspace } from './types'
 import { todayLocal } from './format.ts'
 import { validateBriefingTemplate } from './briefing.ts'
+import { safeProjectMaterialUrl, validateProjectMaterial, type ProjectMaterialInput } from './projectMaterials.ts'
 import { convertOpportunityToProject, createInitialWorkspace, createProjectBriefing, migrateWorkspace, readWorkspace, writeWorkspace, type ProjectConversionInput, type StoragePort } from './workspace.ts'
 
 function getBrowserStorage(): { storage?: StoragePort; warning: string } {
@@ -182,6 +183,36 @@ export function updateProjectBriefing(id: string, answers: Record<string, Briefi
   briefing.updatedAt = new Date().toISOString()
   return saved(briefing)
 }
+export function addProjectMaterial(input: ProjectMaterialInput): ProjectMaterial {
+  if (!state.projects.some(project => project.id === input.projectId)) throw new Error('O projeto não foi encontrado.')
+  const message = validateProjectMaterial(input)
+  if (message) throw new Error(message)
+  const material: ProjectMaterial = {
+    ...input, name: input.name.trim(), url: safeProjectMaterialUrl(input.url)!, notes: input.notes.trim(),
+    id: uid(), createdAt: new Date().toISOString(),
+  }
+  state.projectMaterials.unshift(material)
+  return saved(material)
+}
+
+export function updateProjectMaterial(id: string, input: ProjectMaterialInput): ProjectMaterial {
+  const material = state.projectMaterials.find(item => item.id === id)
+  if (!material || material.projectId !== input.projectId) throw new Error('O material deste projeto não foi encontrado.')
+  const message = validateProjectMaterial(input)
+  if (message) throw new Error(message)
+  Object.assign(material, {
+    name: input.name.trim(), category: input.category, url: safeProjectMaterialUrl(input.url)!, notes: input.notes.trim(),
+  })
+  return saved(material)
+}
+
+export function removeProjectMaterial(id: string, projectId: string): void {
+  const index = state.projectMaterials.findIndex(item => item.id === id && item.projectId === projectId)
+  if (index < 0) throw new Error('O material deste projeto não foi encontrado.')
+  state.projectMaterials.splice(index, 1)
+  persistNow()
+}
+
 export function addPublication(input: Omit<Publication, 'id'>) { state.publications.push({ ...input, id: uid() }); persistNow() }
 export function addBriefingQuestion(input: Omit<BriefingQuestion, 'id'>) { state.legacyBriefing.push({ ...input, id: uid() }); persistNow() }
 
@@ -196,6 +227,7 @@ export function removeItem(key: CollectionKey, id: string): void {
     state.tasks.forEach(task => { if (task.projectId === id) task.projectId = null })
     state.transactions.forEach(transaction => { if (transaction.projectId === id) transaction.projectId = null })
     state.projectBriefings = state.projectBriefings.filter(briefing => briefing.projectId !== id)
+    state.projectMaterials = state.projectMaterials.filter(material => material.projectId !== id)
   } else if (key === 'leads') {
     state.projects.forEach(project => { if (project.sourceLeadId === id) project.sourceLeadId = null })
   } else if (key === 'services') {
