@@ -105,7 +105,7 @@ function finish(saveOnly = false) {
       emit('openProject', existingLead.convertedProjectId, 'Projeto já criado neste atendimento.')
       return
     }
-    const stage: LeadStage = !saveOnly && decision.value === 'proposta' ? 'proposta' : 'conversa'
+    const stage: LeadStage = decision.value === 'proposta' ? 'proposta' : 'conversa'
     const input = {
       name: form.name.trim(), contact: form.contact.trim(),
       service: serviceName.value, serviceId: service.value?.id ?? null,
