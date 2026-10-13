@@ -29,7 +29,7 @@ test('projeto copia tarefas e questionário do serviço e persiste respostas e l
   const storage = new MemoryStorage()
   writeWorkspace(state, storage)
   const reopened = readWorkspace(storage).workspace
-  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 5)
+  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 6)
   assert.equal(reopened.projectBriefings.find(item => item.projectId === project.id)?.answers['business-name'], 'Cliente de exemplo')
   assert.equal(reopened.tasks.filter(task => task.projectId === project.id).length, service.taskTemplates.length + 1)
   assert.equal(reopened.tasks.find(task => task.title === 'Revisar calendário')?.projectId, null)
