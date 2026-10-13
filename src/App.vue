@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { LayoutDashboard, UsersRound, FolderKanban, Wallet, CheckSquare2, DatabaseBackup, Menu, X, ArrowUpRight, Sparkles, LockKeyhole, CalendarRange, BadgeDollarSign, Megaphone, ClipboardList, Plus } from 'lucide-vue-next'
+import { LayoutDashboard, CalendarCheck2, UsersRound, FolderKanban, Wallet, CheckSquare2, DatabaseBackup, Menu, X, ArrowUpRight, Sparkles, LockKeyhole, CalendarRange, BadgeDollarSign, Megaphone, ClipboardList, Plus } from 'lucide-vue-next'
 import DashboardView from './views/DashboardView.vue'
+import TodayView from './views/TodayView.vue'
+import type { TodayProjectTab } from './lib/todayActions'
 import LeadsView from './views/LeadsView.vue'
 import ProjectsView from './views/ProjectsView.vue'
 import FinanceView from './views/FinanceView.vue'
@@ -15,11 +17,12 @@ import ProjectDetailView from './views/ProjectDetailView.vue'
 import NewAttendanceWizard from './views/NewAttendanceWizard.vue'
 import { persistenceError, state } from './lib/store'
 
-type MainPage = 'dashboard' | 'plan' | 'services' | 'leads' | 'projects' | 'finance' | 'publications' | 'briefing' | 'tasks' | 'data'
+type MainPage = 'dashboard' | 'today' | 'plan' | 'services' | 'leads' | 'projects' | 'finance' | 'publications' | 'briefing' | 'tasks' | 'data'
 type Page = MainPage | 'project-detail'
 const page = ref<Page>('dashboard')
 const mobileNav = ref(false)
 const selectedProjectId = ref('')
+const selectedProjectTab = ref<TodayProjectTab>('resumo')
 const projectNotice = ref('')
 const focusedLeadId = ref('')
 const focusedServiceId = ref('')
@@ -30,6 +33,7 @@ const attendanceLeadId = ref<string | null>(null)
 const requestNewDirectProject = ref(0)
 const nav = [
   { id: 'dashboard' as MainPage, text: 'Visão geral', icon: LayoutDashboard },
+  { id: 'today' as MainPage, text: 'Hoje', icon: CalendarCheck2 },
   { id: 'plan' as MainPage, text: 'Plano de lançamento', icon: CalendarRange },
   { id: 'services' as MainPage, text: 'Serviços e preços', icon: BadgeDollarSign },
   { id: 'leads' as MainPage, text: 'Oportunidades', icon: UsersRound },
@@ -41,7 +45,7 @@ const nav = [
   { id: 'data' as MainPage, text: 'Dados & backup', icon: DatabaseBackup },
 ]
 const gruposMenu = [
-  { titulo: 'ACOMPANHAR', itens: nav.filter(item => ['dashboard', 'plan'].includes(item.id)) },
+  { titulo: 'ACOMPANHAR', itens: nav.filter(item => ['dashboard', 'today', 'plan'].includes(item.id)) },
   { titulo: 'ATENDER E PRODUZIR', itens: nav.filter(item => ['leads', 'projects', 'tasks'].includes(item.id)) },
   { titulo: 'ORGANIZAR O NEGÓCIO', itens: nav.filter(item => ['finance', 'publications'].includes(item.id)) },
   { titulo: 'MODELOS E DADOS', itens: nav.filter(item => ['services', 'briefing', 'data'].includes(item.id)) },
@@ -54,7 +58,8 @@ function resumeAttendance(id: string) { attendanceLeadId.value = id; attendanceW
 function wizardOpenLead(id: string) { attendanceWizardOpen.value = false; openLead(id) }
 function wizardOpenProject(id: string, notice = '') { attendanceWizardOpen.value = false; openProject(id, notice) }
 function wizardDirectProject() { attendanceWizardOpen.value = false; requestNewDirectProject.value += 1; navigate('projects') }
-function openProject(id: string, notice = '') { selectedProjectId.value = id; projectNotice.value = notice; page.value = 'project-detail'; mobileNav.value = false; serviceOrigin.value = null }
+function openProject(id: string, notice = '', tab: TodayProjectTab = 'resumo') { selectedProjectId.value = id; selectedProjectTab.value = tab; projectNotice.value = notice; page.value = 'project-detail'; mobileNav.value = false; serviceOrigin.value = null }
+function openProjectFromToday(id: string, tab: TodayProjectTab) { openProject(id, '', tab) }
 function openLead(id: string) { focusedLeadId.value = id; page.value = 'leads'; mobileNav.value = false; serviceOrigin.value = null }
 function openService(id: string) { focusedServiceId.value = id; page.value = 'services'; mobileNav.value = false }
 function openLeadService(id: string, leadId: string) { serviceOrigin.value = { type: 'lead', id: leadId }; openService(id) }
@@ -96,10 +101,11 @@ function returnFromService() { const origin = serviceOrigin.value; if (!origin) 
       <main class="main-content">
         <p v-if="persistenceError" class="storage-error" role="alert">{{ persistenceError }}</p>
         <DashboardView v-if="page === 'dashboard'" @go="navigate" @open-project="openProject" @iniciar-atendimento="iniciarAtendimento" />
+        <TodayView v-else-if="page === 'today'" @open-project="openProjectFromToday" @resume-attendance="resumeAttendance" @open-tasks="navigate('tasks')" @new-attendance="iniciarAtendimento" />
         <PlanView v-else-if="page === 'plan'" />
         <ServicesView v-else-if="page === 'services'" :focus-service-id="focusedServiceId" :origin-label="serviceOriginLabel" @back="returnFromService" />
         <LeadsView v-else-if="page === 'leads'" :focus-lead-id="focusedLeadId" @open-project="openProject" @open-service="openLeadService" @resume-attendance="resumeAttendance" />
-        <ProjectDetailView v-else-if="page === 'project-detail'" :project-id="selectedProjectId" :notice="projectNotice" @go="navigate" @open-lead="openLead" @open-service="openProjectService" />
+        <ProjectDetailView v-else-if="page === 'project-detail'" :project-id="selectedProjectId" :initial-tab="selectedProjectTab" :notice="projectNotice" @go="navigate" @open-lead="openLead" @open-service="openProjectService" />
         <ProjectsView v-else-if="page === 'projects'" :request-new-project="requestNewDirectProject" @open-project="openProject" />
         <FinanceView v-else-if="page === 'finance'" @open-project="openProject" />
         <PublicationsView v-else-if="page === 'publications'" />
