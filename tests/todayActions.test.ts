@@ -145,3 +145,23 @@ test('Hoje encaminha projeto em revisão para entrega e não marca aprovação a
   assert.equal(action.target === 'project' ? action.tab : null, 'entrega')
   assert.equal(w.projectDeliveries.length, 0)
 })
+
+test('Hoje recomenda converter proposta aceita, mas não cria projeto automaticamente', () => {
+  const w = createInitialWorkspace()
+  w.leads.push({ id: 'client-accepted', name: 'Cliente ilustrativo', contact: '',
+    service: 'Site', serviceId: null, convertedProjectId: null, stage: 'proposta',
+    value: 600, notes: '', createdAt: '2026-10-01T00:00:00Z' })
+  w.leadProposals.push({ id: 'proposal-accepted', leadId: 'client-accepted', revisions: [{
+    id: 'rev-accepted', number: 1, createdAt: '2026-10-10T00:00:00Z',
+    serviceName: 'Site', scope: 'Site de apresentação', exclusions: '', price: 550,
+    deliveryTerms: '10 dias úteis', revisionRounds: 1, paymentTerms: '50% de entrada',
+    notes: '', status: 'aceita', sentAt: '2026-10-11T00:00:00Z',
+  }] })
+  const result = buildTodayActions(w, today)
+  assert.equal(result.length, 1)
+  assert.equal(result[0]?.target, 'lead')
+  assert.equal(result[0]?.priority, 'proximo')
+  assert.match(result[0]?.title ?? '', /Converter proposta aceita/)
+  assert.equal(w.projects.length, 0)
+  assert.equal(w.transactions.length, 0)
+})
