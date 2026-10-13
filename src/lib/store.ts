@@ -1,6 +1,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import type { BriefingAnswer, BriefingQuestion, BriefingTemplate, Lead, LeadProposal, ProposalRevision, ProposalStatus, PlanItem, Project, Publication, ProjectBriefing, ProjectMaterial, ProjectInstallment, ProjectDelivery, Service, Task, Transaction, Workspace } from './types'
 import { todayLocal } from './format.ts'
+import { createWriteScheduler } from './writeScheduler.ts'
 import { validateBriefingTemplate } from './briefing.ts'
 import { safeProjectMaterialUrl, validateProjectMaterial, type ProjectMaterialInput } from './projectMaterials.ts'
 import { validateInstallment, validateDelivery, type InstallmentInput, type DeliveryInput } from './projectMilestones.ts'
@@ -22,7 +23,7 @@ const loaded = readWorkspace(storage)
 export const state = reactive<Workspace>(loaded.workspace)
 export const persistenceError = ref(loaded.warning || browserStorage.warning)
 
-function persistNow(): void {
+const persistenceWriter = createWriteScheduler(() => {
   if (!storage) return
   try {
     writeWorkspace(state, storage)
@@ -30,9 +31,20 @@ function persistNow(): void {
   } catch {
     persistenceError.value = 'Não foi possível salvar neste navegador. Exporte um backup e confira o espaço disponível.'
   }
-}
+}, 300)
 
-watch(state, persistNow, { deep: true })
+function persistNow(): void { persistenceWriter.flush() }
+
+// Formulários ligados diretamente ao estado fazem apenas uma gravação ao terminar de digitar;
+// mutações explícitas continuam sendo salvas imediatamente pelo persistNow().
+watch(state, persistenceWriter.schedule, { deep: true, flush: 'post' })
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', persistenceWriter.flushPending)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') persistenceWriter.flushPending()
+  })
+}
 
 export const metrics = computed(() => {
   const incomes = state.transactions.filter(t => t.kind === 'entrada').reduce((a, b) => a + b.amount, 0)
