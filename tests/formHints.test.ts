@@ -7,7 +7,7 @@ test('novo item do plano mostra exemplos para os campos principais sem valor pre
   assert.match(source, /v-model="form.title"[^>]*placeholder="Ex\.: [^"]+"/)
   assert.match(source, /v-model="form.goal"[^>]*placeholder="Ex\.: [^"]+"/)
   assert.match(source, /v-model="form.nextStep"[^>]*placeholder="Ex\.: [^"]+"/)
-  assert.match(source, /id="plan-hours-hint"[^>]*Ex\.: /)
+  assert.match(source, /id="plan-hours-hint">Ex\.: /)
   assert.match(source, /title:''/)
   assert.match(source, /goal:''/)
   assert.match(source, /nextStep:''/)
