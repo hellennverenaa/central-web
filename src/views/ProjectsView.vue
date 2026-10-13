@@ -28,7 +28,7 @@ function submit() {
     emit('openProject', project.id, feedback.value)
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'Não foi possível salvar o projeto.' }
 }
-function drop(id: string) { if (confirm('Excluir este projeto? Tarefas e lançamentos serão preservados sem vínculo; o briefing e as respostas deste projeto serão removidos.')) removeItem('projects', id) }
+function drop(id: string) { if (confirm('Excluir este projeto? Tarefas e lançamentos serão preservados sem vínculo; o briefing, as respostas e os links de materiais deste projeto serão removidos.')) removeItem('projects', id) }
 function announceStatus() { feedback.value = persistenceError.value || 'Status atualizado.' }
 </script>
 
