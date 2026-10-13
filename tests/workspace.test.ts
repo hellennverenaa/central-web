@@ -111,7 +111,7 @@ test('migração v1 preserva os registros e acrescenta modelos estruturados', ()
     tasks: [{ id: 'old-task', title: 'Ação salva', done: false, createdAt: '2025-01-04' }],
   }
   const result = migrateWorkspace(v1)
-  assert.equal(result.schemaVersion, 6)
+  assert.equal(result.schemaVersion, 7)
   assert.equal(result.leads[0].name, 'Contato salvo')
   assert.equal(result.leads[0].serviceId, null)
   assert.equal(result.projects[0].name, 'Projeto salvo')
@@ -155,12 +155,12 @@ test('leitura migra a chave v2 para v5, sem remover o backup legado', () => {
     services: source.services.map(({ taskTemplates: _taskTemplates, briefingTemplateId: _briefingTemplateId, ...row }) => row),
     briefing: source.legacyBriefing,
   }
-  storage.setItem(LEGACY_STORAGE_KEYS[3], JSON.stringify(backupV2))
+  storage.setItem(LEGACY_STORAGE_KEYS[4], JSON.stringify(backupV2))
   const result = readWorkspace(storage)
   assert.equal(result.migratedFrom, 2)
   assert.equal(result.warning, '')
-  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 6)
-  assert.equal(storage.getItem(LEGACY_STORAGE_KEYS[3]), JSON.stringify(backupV2))
+  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 7)
+  assert.equal(storage.getItem(LEGACY_STORAGE_KEYS[4]), JSON.stringify(backupV2))
 })
 
 test('persistência v5 faz round trip e reporta versão atual', () => {
@@ -176,7 +176,7 @@ test('leitura ignora JSON local inválido e retorna modelos seguros', () => {
   const storage = new MemoryStorage()
   storage.setItem(WORKSPACE_STORAGE_KEY, '{broken')
   const result = readWorkspace(storage)
-  assert.equal(result.workspace.schemaVersion, 6)
+  assert.equal(result.workspace.schemaVersion, 7)
   assert.equal(result.workspace.leads.length, 0)
   assert.match(result.warning, /inválido/)
 })
@@ -199,7 +199,7 @@ test('migração v3 mantém relações, tarefas e roteiro legado, e cria respost
   const result = migrateWorkspace(backupV3)
   const migratedProject = result.projects.find(item => item.id === project.id)!
   const migratedBriefing = result.projectBriefings.find(item => item.projectId === project.id)
-  assert.equal(result.schemaVersion, 6)
+  assert.equal(result.schemaVersion, 7)
   assert.equal(result.leads[0].convertedProjectId, project.id)
   assert.equal(result.tasks[0].projectId, project.id)
   assert.equal(result.transactions[0].projectId, project.id)
@@ -222,11 +222,11 @@ test('leitura migra a chave v3 para v5 e preserva o arquivo de origem', () => {
     publications: current.publications,
     briefing: current.legacyBriefing,
   }
-  storage.setItem(LEGACY_STORAGE_KEYS[2], JSON.stringify(backupV3))
+  storage.setItem(LEGACY_STORAGE_KEYS[3], JSON.stringify(backupV3))
   const result = readWorkspace(storage)
   assert.equal(result.migratedFrom, 3)
-  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 6)
-  assert.equal(storage.getItem(LEGACY_STORAGE_KEYS[2]), JSON.stringify(backupV3))
+  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 7)
+  assert.equal(storage.getItem(LEGACY_STORAGE_KEYS[3]), JSON.stringify(backupV3))
   assert.equal(result.workspace.tasks[0].projectId, current.projects[0].id)
 })
 
@@ -254,19 +254,19 @@ test('respostas e perguntas de projetos são cópias independentes do modelo', (
 test('migração v4 preserva clientes, projetos, briefings e tarefas sem apagar a chave anterior', () => {
   const storage = new MemoryStorage()
   const current = linkedWorkspace()
-  const { projectMaterials: _projectMaterials, projectInstallments: _installments, projectDeliveries: _deliveries, ...legacy } = current
+  const { projectMaterials: _projectMaterials, projectInstallments: _installments, projectDeliveries: _deliveries, leadProposals: _proposals, ...legacy } = current
   const backupV4 = { ...legacy, schemaVersion: 4 }
-  storage.setItem(LEGACY_STORAGE_KEYS[1], JSON.stringify(backupV4))
+  storage.setItem(LEGACY_STORAGE_KEYS[2], JSON.stringify(backupV4))
   const result = readWorkspace(storage)
   assert.equal(result.migratedFrom, 4)
-  assert.equal(result.workspace.schemaVersion, 6)
+  assert.equal(result.workspace.schemaVersion, 7)
   assert.deepEqual(result.workspace.leads, current.leads)
   assert.deepEqual(result.workspace.projects, current.projects)
   assert.deepEqual(result.workspace.projectBriefings, current.projectBriefings)
   assert.deepEqual(result.workspace.tasks, current.tasks)
   assert.deepEqual(result.workspace.projectMaterials, [])
-  assert.equal(storage.getItem(LEGACY_STORAGE_KEYS[1]), JSON.stringify(backupV4))
-  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 6)
+  assert.equal(storage.getItem(LEGACY_STORAGE_KEYS[2]), JSON.stringify(backupV4))
+  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 7)
 })
 
 test('links de projetos permanecem no backup v5 e referências inválidas são rejeitadas', () => {
@@ -359,21 +359,21 @@ test('migração v5 mantém materiais, leads, projetos e tarefas sem sobrescreve
   const current = linkedWorkspace()
   current.projectMaterials.push({ id: 'material-1', projectId: 'project-1', name: 'Arquivo',
     category: 'arquivo', url: 'https://example.org/', notes: '', createdAt: '2026-10-01' })
-  const { projectInstallments: _installments, projectDeliveries: _deliveries, ...legacy } = current
+  const { projectInstallments: _installments, projectDeliveries: _deliveries, leadProposals: _proposals, ...legacy } = current
   const backup = { ...legacy, schemaVersion: 5 }
   const storage = new MemoryStorage()
-  storage.setItem(LEGACY_STORAGE_KEYS[0], JSON.stringify(backup))
+  storage.setItem(LEGACY_STORAGE_KEYS[1], JSON.stringify(backup))
   const result = readWorkspace(storage)
   assert.equal(result.migratedFrom, 5)
-  assert.equal(result.workspace.schemaVersion, 6)
+  assert.equal(result.workspace.schemaVersion, 7)
   assert.deepEqual(result.workspace.projectMaterials, current.projectMaterials)
   assert.deepEqual(result.workspace.projects, current.projects)
   assert.deepEqual(result.workspace.projectBriefings, current.projectBriefings)
   assert.deepEqual(result.workspace.transactions, current.transactions)
   assert.deepEqual(result.workspace.projectInstallments, [])
   assert.deepEqual(result.workspace.projectDeliveries, [])
-  assert.equal(storage.getItem(LEGACY_STORAGE_KEYS[0]), JSON.stringify(backup))
-  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 6)
+  assert.equal(storage.getItem(LEGACY_STORAGE_KEYS[1]), JSON.stringify(backup))
+  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 7)
 })
 
 test('backup v6 valida parcelas e vínculos com pagamentos reais sem aceitar dupla associação', () => {
@@ -394,4 +394,44 @@ test('backup v6 valida parcelas e vínculos com pagamentos reais sem aceitar dup
   const future = structuredClone(workspace)
   future.projectDeliveries[0].approvedAt = '2026-01-19'
   assert.throws(() => migrateWorkspace(future), /Backup inválido/)
+})
+
+test('migração v6 preserva cronograma financeiro e entregas ao iniciar propostas vazias', () => {
+  const source = linkedWorkspace()
+  source.projectInstallments.push({ id: 'parcela-1', projectId: 'project-1', title: 'Sinal',
+    amount: 200, dueDate: '2026-01-05', receivedTransactionIds: ['transaction-1'], createdAt: '2026-01-01' })
+  source.projectDeliveries.push({ projectId: 'project-1', reviewSentAt: '2026-01-10', approvedAt: '',
+    deliveredAt: '', notes: '' })
+  const { leadProposals: _proposals, ...prior } = source
+  const backupV6 = { ...prior, schemaVersion: 6 }
+  const storage = new MemoryStorage()
+  storage.setItem(LEGACY_STORAGE_KEYS[0], JSON.stringify(backupV6))
+  const { migratedFrom, workspace } = readWorkspace(storage)
+  assert.equal(migratedFrom, 6)
+  assert.equal(workspace.schemaVersion, 7)
+  assert.deepEqual(workspace.projects, source.projects)
+  assert.deepEqual(workspace.projectInstallments, source.projectInstallments)
+  assert.deepEqual(workspace.projectDeliveries, source.projectDeliveries)
+  assert.deepEqual(workspace.projectBriefings, source.projectBriefings)
+  assert.deepEqual(workspace.leadProposals, [])
+  assert.equal(storage.getItem(LEGACY_STORAGE_KEYS[0]), JSON.stringify(backupV6))
+})
+
+test('backup v7 valida a integridade do histórico de propostas e dos vínculos', () => {
+  const source = linkedWorkspace()
+  const revision = { id: 'revision-1', number: 1, createdAt: '2026-10-13', serviceName: 'Site',
+    scope: 'Página de apresentação', exclusions: '', price: 350, deliveryTerms: '10 dias úteis',
+    revisionRounds: 1, paymentTerms: '50% no início', notes: '',
+    status: 'enviada' as const, sentAt: '2026-10-13T21:00:00Z' }
+  source.leadProposals = [{ id: 'proposal-1', leadId: 'lead-1', revisions: [revision] }]
+  assert.deepEqual(migrateWorkspace(source).leadProposals, source.leadProposals)
+  const invalid = structuredClone(source)
+  invalid.leadProposals[0].revisions[0].number = 3
+  assert.throws(() => migrateWorkspace(invalid), /Backup inválido/)
+  const duplicate = structuredClone(source)
+  duplicate.leadProposals.push({ ...duplicate.leadProposals[0], id: 'proposal-2' })
+  assert.throws(() => migrateWorkspace(duplicate), /Backup inválido/)
+  const orphan = structuredClone(source)
+  orphan.leadProposals[0].leadId = 'missing'
+  assert.throws(() => migrateWorkspace(orphan), /Backup inválido/)
 })
