@@ -402,3 +402,14 @@ tr[id^="lead-"]:target,article[id^="service-"]:target{outline:2px solid var(--cw
   .confirmation-actions .btn{min-width:0}
 }
 @media(prefers-reduced-motion:reduce){.confirmation-dialog{animation:none}}
+
+/* Exemplos de preenchimento: legíveis nos dois temas, sem salvar valores fictícios. */
+.field input::placeholder,
+.field textarea::placeholder,
+.modal input::placeholder,
+.modal textarea::placeholder{color:#817b90;opacity:1;font-weight:400}
+html[data-theme="dark"] .field input::placeholder,
+html[data-theme="dark"] .field textarea::placeholder,
+html[data-theme="dark"] .modal input::placeholder,
+html[data-theme="dark"] .modal textarea::placeholder{color:#b5aec5;opacity:1}
+.field small{font-size:11px;line-height:1.55;color:var(--cw-fg-9293a5)}
