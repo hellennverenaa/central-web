@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Download, Upload, TestTube2, Trash2, ShieldAlert } from 'lucide-vue-next'
-import { clearAll, exportWorkspace, importWorkspace, loadDemo, persistenceError, state } from '../lib/store'
+import { clearAll, exportWorkspace, importWorkspace, loadDemo, persistenceError } from '../lib/store'
 const notice = ref('')
 function loadSample() { if (!confirm('Substituir TODOS os dados locais, incluindo modelos, links e projetos, por dados fictícios? Exporte um backup antes de continuar.')) return; loadDemo(); notice.value = persistenceError.value || 'Dados fictícios carregados e salvos neste dispositivo.' }
 function reset() { if (!confirm('Restaurar os modelos originais e apagar registros locais? Exporte um backup antes!')) return; clearAll(); notice.value = persistenceError.value || 'Registros removidos e modelos do planejamento restaurados.' }
