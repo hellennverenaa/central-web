@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardList, FolderKanban, Plus,
 import { addLead, convertLeadToProject, persistenceError, state, updateLead } from '../lib/store'
 import { brl, todayLocal } from '../lib/format'
 import { initialConversionPrice, serviceSuggestion } from '../lib/pricing'
+import { acceptedPrice } from '../lib/proposals'
 import type { LeadStage, ProjectStatus } from '../lib/types'
 
 const props = defineProps<{ initialLeadId?: string | null }>()
@@ -35,7 +36,8 @@ const form = reactive({
 const service = computed(() => state.services.find(item => item.id === form.serviceId) ?? null)
 const serviceName = computed(() => service.value?.name ?? (form.serviceId === 'custom' ? form.customService.trim() : 'A definir'))
 const catalogPrice = computed(() => service.value ? serviceSuggestion(service.value) : null)
-const suggestedPrice = computed(() => initialConversionPrice(Number(form.estimate), service.value))
+const acceptedProposal = computed(() => props.initialLeadId ? acceptedPrice(state.leadProposals.find(item => item.leadId === props.initialLeadId)) : null)
+const suggestedPrice = computed(() => acceptedProposal.value ?? initialConversionPrice(Number(form.estimate), service.value))
 const suggestedBriefing = computed(() => state.briefingTemplates.find(template => template.id === (service.value?.briefingTemplateId || state.briefingTemplates[0]?.id)) ?? null)
 const chosenBriefing = computed(() => state.briefingTemplates.find(template => template.id === form.briefingTemplateId) ?? suggestedBriefing.value)
 const initialTasks = computed(() => service.value?.taskTemplates ?? ['Confirmar escopo e materiais com o cliente', 'Preparar primeira versão', 'Revisar ajustes e combinar a entrega'])
@@ -190,6 +192,7 @@ function finish(saveOnly = false) {
               <div class="attendance-project-fields">
                 <div class="field"><label for="wizard-project-name">Nome do projeto *</label><input id="wizard-project-name" v-model="form.projectName" maxlength="140" @input="projectNameEdited = true"/></div>
                 <div class="form-row"><div class="field"><label for="wizard-agreed-price">Preço combinado (R$) *</label><input id="wizard-agreed-price" v-model.number="form.agreedPrice" type="number" min="0" step="0.01" @input="priceEdited = true"/></div><div class="field"><label for="wizard-deadline">Prazo *</label><input id="wizard-deadline" v-model="form.deadline" type="date"/></div></div>
+                <div v-if="acceptedProposal !== null" class="attendance-price-reference"><span>Proposta aceita: <b>{{ brl(acceptedProposal) }}</b></span><button type="button" class="btn btn-outline btn-slim" @click="form.agreedPrice = acceptedProposal!; priceEdited = true">Usar preço aceito</button></div>
                 <div v-if="service" class="attendance-price-reference"><span>Referência do catálogo: <b>{{ brl(catalogPrice ?? 0) }}</b></span><button type="button" class="btn btn-outline btn-slim" @click="selectCatalogPrice">Aplicar referência</button></div>
                 <div class="form-row"><div class="field"><label for="wizard-project-status">Status inicial</label><select id="wizard-project-status" v-model="form.status"><option value="planejado">Planejado</option><option value="andamento">Em andamento</option><option value="revisao">Em revisão</option></select></div><div class="field"><label for="wizard-template">Briefing do projeto</label><select id="wizard-template" v-model="form.briefingTemplateId"><option v-for="template in state.briefingTemplates" :key="template.id" :value="template.id">{{ template.name }}</option></select></div></div>
                 <div class="attendance-template-preview"><span class="section-kicker">PREPARAÇÃO AUTOMÁTICA</span><p><CheckCircle2 :size="16"/> 1 briefing independente: <b>{{ chosenBriefing?.name || 'Modelo geral' }}</b></p><p><CheckCircle2 :size="16"/> {{ initialTasks.length }} tarefas iniciais (geradas uma única vez)</p><p><CheckCircle2 :size="16"/> Oportunidade vinculada e valor contratado independente da estimativa</p><small>Alterar o modelo depois não muda as perguntas ou tarefas já copiadas. Nenhuma entrada financeira será gerada.</small></div>
