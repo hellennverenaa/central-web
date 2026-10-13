@@ -68,12 +68,16 @@ function nextStep() {
 function previousStep() { error.value = ''; step.value = Math.max(1, step.value - 1) }
 function selectCatalogPrice() { if (catalogPrice.value !== null) { form.agreedPrice = catalogPrice.value; priceEdited.value = true } }
 
+const hasUnsavedChanges = computed(() => {
+  if (originalLead) return form.name.trim() !== originalLead.name ||
+    form.contact.trim() !== originalLead.contact || form.notes.trim() !== originalLead.notes ||
+    serviceName.value !== originalLead.service || Number(form.estimate) !== originalLead.value
+  return Boolean(form.name.trim() || form.contact.trim() || form.notes.trim() ||
+    form.serviceId || form.customService.trim() || Number(form.estimate) > 0)
+})
+
 function close() {
-  if (savedLeadId.value && !originalLead || (!form.name.trim() && !form.contact.trim() && !form.notes.trim() && !form.customService.trim())) {
-    emit('close')
-    return
-  }
-  if (confirm('Descartar as informações deste atendimento que ainda não foram salvas?')) emit('close')
+  if (!hasUnsavedChanges.value || confirm('Descartar as informações deste atendimento que ainda não foram salvas?')) emit('close')
 }
 
 function newProjectDirectly() {
