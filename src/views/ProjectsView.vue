@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { ArrowRight, FolderKanban, Plus, Trash2 } from 'lucide-vue-next'
 import { state, addProject, persistenceError, removeItem } from '../lib/store'
 import { brl, dateBR, projectLabels, todayLocal } from '../lib/format'
 import { serviceSuggestion } from '../lib/pricing'
 import type { ProjectStatus } from '../lib/types'
 
+const props = defineProps<{ requestNewProject?: number }>()
 const emit = defineEmits<{ openProject: [id: string, notice?: string] }>()
 const statuses: ProjectStatus[] = ['planejado', 'andamento', 'revisao', 'entregue']
 const showForm = ref(false)
@@ -13,6 +14,7 @@ const error = ref('')
 const feedback = ref('')
 const form = reactive({ name: '', client: '', serviceId: '', status: 'planejado' as ProjectStatus, deadline: todayLocal(), value: 0 })
 function create() { Object.assign(form, { name: '', client: '', serviceId: '', status: 'planejado', deadline: todayLocal(), value: 0 }); error.value = ''; feedback.value = ''; showForm.value = true }
+watch(() => props.requestNewProject, requested => { if (requested) create() }, { immediate: true })
 function selectService() {
   const service = state.services.find(item => item.id === form.serviceId)
   if (service) form.value = serviceSuggestion(service)
