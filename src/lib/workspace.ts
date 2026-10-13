@@ -375,6 +375,8 @@ export interface ProjectConversionInput {
   status: Project['status']
   deadline: string
   value: number
+  /** Se informado, substitui apenas o modelo de briefing desta conversão. */
+  briefingTemplateId?: string | null
 }
 
 export function convertOpportunityToProject(
@@ -395,7 +397,10 @@ export function convertOpportunityToProject(
   if (!name || !client || !Number.isFinite(input.value) || input.value < 0) throw new Error('Revise nome, cliente e valor combinado do projeto.')
   const service = workspace.services.find(item => item.id === lead.serviceId) ??
     workspace.services.find(item => item.name.trim().toLocaleLowerCase('pt-BR') === lead.service.trim().toLocaleLowerCase('pt-BR'))
-  const template = workspace.briefingTemplates.find(item => item.id === service?.briefingTemplateId) ??
+  if (input.briefingTemplateId && !workspace.briefingTemplates.some(item => item.id === input.briefingTemplateId)) {
+    throw new Error('O modelo de briefing selecionado não existe mais.')
+  }
+  const template = workspace.briefingTemplates.find(item => item.id === (input.briefingTemplateId || service?.briefingTemplateId)) ??
     workspace.briefingTemplates.find(item => item.id === DEFAULT_BRIEFING_TEMPLATE_ID) ?? workspace.briefingTemplates[0]
   if (!template) throw new Error('Cadastre um modelo de briefing antes de converter a oportunidade.')
   const briefingId = createId()
