@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { CheckCircle2, ClipboardCheck, ExternalLink } from 'lucide-vue-next'
 import { state, saveProjectDelivery, persistenceError } from '../lib/store'
+import { confirmAction } from '../lib/confirmation'
 import { dateBR } from '../lib/format'
 
 const props = defineProps<{ projectId: string }>()
@@ -21,11 +22,11 @@ function openEdit() {
   })
   error.value = ''; feedback.value = ''; showForm.value = true
 }
-function save() {
+async function save() {
   error.value = ''
   try {
     if (form.deliveredAt && !current.value?.deliveredAt &&
-        !confirm('Confirmar que este projeto foi entregue? O status do projeto passará para Entregue.')) return
+        !(await confirmAction({ title: 'Confirmar entrega final?', message: 'Ao confirmar a data de entrega, o status deste projeto será atualizado para Entregue. Nenhum recebimento será criado.', confirmLabel: 'Confirmar entrega' }))) return
     saveProjectDelivery({ ...form, projectId: props.projectId })
     if (persistenceError.value) { error.value = persistenceError.value; return }
     feedback.value = 'Etapas de revisão e entrega atualizadas neste projeto.'
