@@ -5,11 +5,12 @@ import { state, addProjectMaterial, addTask, addTransaction, persistenceError, r
 import { brl, dateBR, projectLabels, todayLocal } from '../lib/format'
 import { serviceSuggestion } from '../lib/pricing'
 import { projectMaterialCategories } from '../lib/projectMaterials'
+import type { TodayProjectTab } from '../lib/todayActions'
 import { briefingProgress, isQuestionVisible, unansweredRequiredQuestionIds } from '../lib/briefing'
 import type { BriefingAnswer, BriefingQuestionDefinition, ProjectMaterial, ProjectMaterialCategory, ProjectStatus, Transaction, TransactionType } from '../lib/types'
 
 type MainPage = 'projects' | 'leads' | 'services' | 'finance' | 'tasks'
-const props = defineProps<{ projectId: string; notice?: string }>()
+const props = defineProps<{ projectId: string; notice?: string; initialTab?: TodayProjectTab }>()
 const emit = defineEmits<{ go: [page: MainPage]; openLead: [id: string]; openService: [id: string] }>()
 const project = computed(() => state.projects.find(item => item.id === props.projectId) ?? null)
 const sourceLead = computed(() => project.value?.sourceLeadId ? state.leads.find(lead => lead.id === project.value?.sourceLeadId) ?? null : null)
@@ -56,12 +57,14 @@ watch(() => [props.projectId, projectBriefing.value?.id] as const, () => {
   briefingFeedback.value = ''
   briefingDirty.value = false
   briefingSavedAt.value = ''
-  abaAtiva.value = 'resumo'
+  abaAtiva.value = props.initialTab ?? 'resumo'
   openMaterialForm.value = false
   materialFeedback.value = ''
   materialError.value = ''
   secaoBriefingAtiva.value = projectBriefing.value?.sections[0]?.id ?? ''
 }, { immediate: true })
+
+watch(() => props.initialTab, tab => { if (tab) abaAtiva.value = tab })
 
 function visibleQuestion(question: BriefingQuestionDefinition) { return isQuestionVisible(question, briefingAnswers, briefingQuestions.value) }
 function scalarAnswer(questionId: string): string {
