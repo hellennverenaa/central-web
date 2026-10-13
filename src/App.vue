@@ -1,20 +1,22 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { LayoutDashboard, CalendarCheck2, UsersRound, FolderKanban, Wallet, CheckSquare2, DatabaseBackup, Menu, X, ArrowUpRight, Sparkles, LockKeyhole, CalendarRange, BadgeDollarSign, Megaphone, ClipboardList, Plus } from 'lucide-vue-next'
+import { computed, defineAsyncComponent, ref } from 'vue'
+import { LayoutDashboard, CalendarCheck2, UsersRound, FolderKanban, Wallet, CheckSquare2, DatabaseBackup, Menu, X, ArrowUpRight, Sparkles, LockKeyhole, CalendarRange, BadgeDollarSign, Megaphone, ClipboardList, Plus, Sun, Moon } from 'lucide-vue-next'
 import DashboardView from './views/DashboardView.vue'
-import TodayView from './views/TodayView.vue'
+import LoadingView from './views/LoadingView.vue'
+import { theme, toggleTheme } from './lib/theme'
+const TodayView = defineAsyncComponent({ loader: () => import('./views/TodayView.vue'), loadingComponent: LoadingView, delay: 120 })
 import type { TodayProjectTab } from './lib/todayActions'
-import LeadsView from './views/LeadsView.vue'
-import ProjectsView from './views/ProjectsView.vue'
-import FinanceView from './views/FinanceView.vue'
-import TasksView from './views/TasksView.vue'
-import DataView from './views/DataView.vue'
-import PlanView from './views/PlanView.vue'
-import ServicesView from './views/ServicesView.vue'
-import PublicationsView from './views/PublicationsView.vue'
-import BriefingView from './views/BriefingView.vue'
-import ProjectDetailView from './views/ProjectDetailView.vue'
-import NewAttendanceWizard from './views/NewAttendanceWizard.vue'
+const LeadsView = defineAsyncComponent({ loader: () => import('./views/LeadsView.vue'), loadingComponent: LoadingView, delay: 120 })
+const ProjectsView = defineAsyncComponent({ loader: () => import('./views/ProjectsView.vue'), loadingComponent: LoadingView, delay: 120 })
+const FinanceView = defineAsyncComponent({ loader: () => import('./views/FinanceView.vue'), loadingComponent: LoadingView, delay: 120 })
+const TasksView = defineAsyncComponent({ loader: () => import('./views/TasksView.vue'), loadingComponent: LoadingView, delay: 120 })
+const DataView = defineAsyncComponent({ loader: () => import('./views/DataView.vue'), loadingComponent: LoadingView, delay: 120 })
+const PlanView = defineAsyncComponent({ loader: () => import('./views/PlanView.vue'), loadingComponent: LoadingView, delay: 120 })
+const ServicesView = defineAsyncComponent({ loader: () => import('./views/ServicesView.vue'), loadingComponent: LoadingView, delay: 120 })
+const PublicationsView = defineAsyncComponent({ loader: () => import('./views/PublicationsView.vue'), loadingComponent: LoadingView, delay: 120 })
+const BriefingView = defineAsyncComponent({ loader: () => import('./views/BriefingView.vue'), loadingComponent: LoadingView, delay: 120 })
+const ProjectDetailView = defineAsyncComponent({ loader: () => import('./views/ProjectDetailView.vue'), loadingComponent: LoadingView, delay: 120 })
+const NewAttendanceWizard = defineAsyncComponent({ loader: () => import('./views/NewAttendanceWizard.vue'), loadingComponent: LoadingView, delay: 120 })
 import ConfirmationDialog from './views/ConfirmationDialog.vue'
 import { persistenceError, state } from './lib/store'
 
@@ -98,7 +100,7 @@ function returnFromService() { const origin = serviceOrigin.value; if (!origin) 
     <div class="main-pane">
       <header class="topbar">
         <div class="topbar-left"><button class="icon-button menu-mobile" aria-label="Abrir menu" @click="mobileNav = true"><Menu :size="21" /></button><span class="breadcrumbs">Workspace <span>/</span> <b>{{ title }}</b></span></div>
-        <div class="topbar-right"><span class="date-label">{{ date }}</span><span class="demo-tag"><LockKeyhole :size="12" /> LOCAL / DEMO</span></div>
+        <div class="topbar-right"><button class="theme-toggle" type="button" :aria-label="theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'" :title="theme === 'dark' ? 'Modo claro' : 'Modo escuro'" :aria-pressed="theme === 'dark'" @click="toggleTheme"><Sun v-if="theme === 'dark'" :size="17"/><Moon v-else :size="17"/><span>{{ theme === 'dark' ? 'Light' : 'Dark' }}</span></button><span class="date-label">{{ date }}</span><span class="demo-tag"><LockKeyhole :size="12" /> LOCAL / DEMO</span></div>
       </header>
       <main class="main-content">
         <p v-if="persistenceError" class="storage-error" role="alert">{{ persistenceError }}</p>
