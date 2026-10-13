@@ -76,3 +76,26 @@ export function briefingProgress(briefing: ProjectBriefing): { complete: number;
   const required = requiredQuestionIds(briefing)
   return { complete: required.length - unansweredRequiredQuestionIds(briefing).length, total: required.length }
 }
+
+/** Dados prontos para consulta: inclui apenas perguntas visíveis no briefing salvo. */
+export function briefingReviewSections(briefing: ProjectBriefing) {
+  const questions = briefing.sections.flatMap(section => section.questions)
+  return briefing.sections.map(section => ({
+    id: section.id,
+    title: section.title,
+    description: section.description,
+    answers: section.questions
+      .filter(question => isQuestionVisible(question, briefing.answers, questions))
+      .map(question => {
+        const value = briefing.answers[question.id]
+        const answer = Array.isArray(value) ? value.join(', ') : value?.trim() ?? ''
+        return {
+          id: question.id,
+          label: question.label,
+          answer,
+          answered: Boolean(answer),
+          required: question.required,
+        }
+      }),
+  })).filter(section => section.answers.length > 0)
+}
