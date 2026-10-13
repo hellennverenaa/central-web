@@ -70,7 +70,7 @@ async function drop(item: ProjectInstallment) {
       <div class="modal-head"><h2 id="installment-title">{{ editingId ? 'Editar parcela prevista' : 'Nova parcela prevista' }}</h2><button type="button" class="icon-button" aria-label="Fechar" @click="showForm = false">✕</button></div>
       <form @submit.prevent="save">
         <div class="field"><label for="installment-name">Descrição *</label><input id="installment-name" v-model="form.title" maxlength="120" required placeholder="Ex.: Sinal de 50%"/></div>
-        <div class="form-row"><div class="field"><label for="installment-amount">Valor previsto (R$) *</label><input id="installment-amount" v-model.number="form.amount" type="number" min="0.01" step="0.01" required/></div><div class="field"><label for="installment-date">Vencimento combinado *</label><input id="installment-date" v-model="form.dueDate" type="date" required/></div></div>
+        <div class="form-row"><div class="field"><label for="installment-amount">Valor previsto (R$) *</label><input id="installment-amount" v-model.number="form.amount" type="number" min="0.01" step="0.01" required placeholder="Ex.: 300"/></div><div class="field"><label for="installment-date">Vencimento combinado *</label><input id="installment-date" v-model="form.dueDate" type="date" required/></div></div>
         <fieldset class="planned-receipt-links"><legend>Vincular recebimentos já registrados (opcional)</legend>
           <p>Marcar um lançamento associa o pagamento à parcela, sem criar outra entrada de caixa. Você também pode vincular pagamentos parciais.</p>
           <label v-for="tx in availableReceipts" :key="tx.id" class="planned-receipt-option">
