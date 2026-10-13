@@ -319,3 +319,32 @@ tr[id^="lead-"]:target,article[id^="service-"]:target{outline:2px solid #aa99ea;
   .briefing-review-grid{grid-template-columns:1fr;gap:15px}
 }
 @media(max-width:460px){.briefing-review-edit{width:100%}.project-briefing-actions .row-actions{flex-wrap:wrap}.project-briefing-actions .row-actions .btn{width:100%}}
+
+/* Etapa 5 — parcelas previstas e marcos reais de revisão e entrega. */
+.project-installments,.project-delivery{margin-top:18px}
+.planned-explanation{font-size:12px;line-height:1.7;color:#7e788b;margin:0 0 18px}
+.planned-totals{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:#f8f6fe;border-radius:10px;padding:12px 15px;color:#51446f;font-size:12px}
+.planned-totals span{color:#868092;font-size:11px}
+.planned-list{display:grid;gap:0}
+.planned-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #edeaf4;padding:18px 0}
+.planned-row>div:first-child{display:grid;gap:6px;flex:1;min-width:0}
+.planned-row strong{font-size:13px;color:#484057}
+.planned-row small{display:block;font-size:11px;color:#898294;line-height:1.5}
+.planned-values{text-align:right;min-width:130px;display:grid;gap:4px}
+.planned-values b{font-size:13px;color:#524470}
+.planned-receipt-links{border:1px solid #e9e5ee;padding:15px;border-radius:11px;margin:10px 0 16px;display:grid;gap:10px}
+.planned-receipt-links legend{font-size:12px;font-weight:800;color:#59516c;padding:0 6px}
+.planned-receipt-links p,.planned-receipt-links small{font-size:11px;line-height:1.6;color:#8b8495;margin:0}
+.planned-receipt-option{display:flex;align-items:center;gap:10px;font-size:12px;color:#63596e;cursor:pointer}
+.planned-receipt-option input{flex:0 0 17px;width:17px;height:17px;accent-color:#7561c8}
+.delivery-milestones{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:15px 0 20px}
+.delivery-milestones>div{display:grid;align-content:start;gap:9px;padding:18px;background:#faf9fd;border:1px solid #edeaf5;border-radius:11px}
+.delivery-milestones svg{color:#7b69c4}
+.delivery-milestones span{font-size:11px;color:#8c8597}
+.delivery-milestones strong{font-size:13px;color:#45405b}
+.delivery-notes{padding:15px 0;border-top:1px solid #eeebf4}
+.delivery-notes b,.delivery-links b{font-size:12px;color:#49435a}
+.delivery-notes p{white-space:pre-wrap;font-size:12px;line-height:1.7;color:#706a80;margin:9px 0 0}
+.delivery-links{display:grid;gap:10px;border-top:1px solid #eeebf4;padding-top:15px;margin-bottom:13px}
+.delivery-links a{display:flex;align-items:center;gap:6px;font-size:12px;color:#7059b5;overflow-wrap:anywhere}
+@media(max-width:760px){.delivery-milestones{grid-template-columns:1fr}.planned-row{align-items:flex-start;flex-wrap:wrap}.planned-values{text-align:left}.planned-row>.row-actions{margin-left:auto}}
