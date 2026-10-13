@@ -1,5 +1,6 @@
 import { unansweredRequiredQuestionIds } from './briefing.ts'
 import { installmentBalance } from './projectMilestones.ts'
+import { latestRevision } from './proposals.ts'
 import type { Workspace } from './types.ts'
 
 export type TodayPriority = 'urgente' | 'proximo' | 'acompanhar'
@@ -23,7 +24,7 @@ function daysUntil(date: string, today: string): number | null {
  * Apenas uma ação principal por projeto; concluídos/entregues não reaparecem por tarefas antigas.
  */
 export function buildTodayActions(
-  workspace: Pick<Workspace, 'projects' | 'projectBriefings' | 'tasks' | 'leads' | 'transactions' | 'projectInstallments' | 'projectDeliveries'>,
+  workspace: Pick<Workspace, 'projects' | 'projectBriefings' | 'tasks' | 'leads' | 'transactions' | 'projectInstallments' | 'projectDeliveries' | 'leadProposals'>,
   today: string,
 ): TodayAction[] {
   const actions: TodayAction[] = []
@@ -136,15 +137,22 @@ export function buildTodayActions(
 
   for (const lead of workspace.leads) {
     if (lead.convertedProjectId || lead.stage === 'perdido') continue
-    const title = lead.stage === 'ganho' ? 'Regularizar oportunidade marcada como ganha' :
+    const revision = latestRevision(workspace.leadProposals.find(item => item.leadId === lead.id))
+    const accepted = revision?.status === 'aceita'
+    const title = accepted ? 'Converter proposta aceita em projeto' :
+      lead.stage === 'ganho' ? 'Regularizar oportunidade marcada como ganha' :
+      revision?.status === 'recusada' ? 'Revisar proposta recusada' :
+      revision?.status === 'enviada' ? 'Acompanhar proposta enviada' :
       lead.stage === 'proposta' ? 'Acompanhar proposta apresentada' :
         lead.stage === 'novo' ? 'Iniciar conversa com novo contato' : 'Continuar conversa com cliente'
     actions.push({
       id: `lead:${lead.id}`, target: 'lead', entityId: lead.id, kind: 'comercial',
-      priority: lead.stage === 'ganho' ? 'urgente' : 'acompanhar',
-      sortOrder: lead.stage === 'ganho' ? 2 : lead.stage === 'proposta' ? 65 : lead.stage === 'conversa' ? 70 : 75,
-      title, subject: lead.name, description: `Serviço: ${lead.service || 'A definir'}. Etapa do atendimento: ${lead.stage}.`,
-      cta: 'Retomar atendimento',
+      priority: lead.stage === 'ganho' ? 'urgente' : accepted ? 'proximo' : 'acompanhar',
+      sortOrder: lead.stage === 'ganho' ? 2 : accepted ? 25 : lead.stage === 'proposta' ? 65 : lead.stage === 'conversa' ? 70 : 75,
+      title, subject: lead.name, description: accepted
+        ? 'Aceite comercial registrado. Confira o preço combinado e confirme a criação do projeto no atendimento.'
+        : `Serviço: ${lead.service || 'A definir'}. Etapa do atendimento: ${lead.stage}.`,
+      cta: accepted ? 'Retomar e criar projeto' : 'Retomar atendimento',
     })
   }
 
