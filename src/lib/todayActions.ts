@@ -29,18 +29,45 @@ export function buildTodayActions(
 ): TodayAction[] {
   const actions: TodayAction[] = []
 
+  // Índices são calculados uma vez, evitando percorrer todo o workspace para cada projeto.
+  const receiptsByProject = new Map<string, Workspace['transactions']>()
+  const receivedByProject = new Map<string, number>()
+  for (const transaction of workspace.transactions) {
+    if (!transaction.projectId || transaction.kind !== 'entrada') continue
+    const list = receiptsByProject.get(transaction.projectId) ?? []
+    list.push(transaction)
+    receiptsByProject.set(transaction.projectId, list)
+    receivedByProject.set(transaction.projectId, (receivedByProject.get(transaction.projectId) ?? 0) + transaction.amount)
+  }
+  const installmentsByProject = new Map<string, Workspace['projectInstallments']>()
+  for (const installment of workspace.projectInstallments) {
+    const list = installmentsByProject.get(installment.projectId) ?? []
+    list.push(installment)
+    installmentsByProject.set(installment.projectId, list)
+  }
+  for (const list of installmentsByProject.values()) list.sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+
+  const pendingByProject = new Map<string, Workspace['tasks']>()
+  for (const task of workspace.tasks) {
+    if (task.done || !task.projectId) continue
+    const list = pendingByProject.get(task.projectId) ?? []
+    list.push(task)
+    pendingByProject.set(task.projectId, list)
+  }
+  const briefingsById = new Map(workspace.projectBriefings.map(briefing => [briefing.id, briefing]))
+  const deliveriesByProject = new Map(workspace.projectDeliveries.map(delivery => [delivery.projectId, delivery]))
+  const proposalsByLead = new Map(workspace.leadProposals.map(proposal => [proposal.leadId, proposal]))
+
   for (const project of workspace.projects) {
-    const received = workspace.transactions
-      .filter(item => item.projectId === project.id && item.kind === 'entrada')
-      .reduce((sum, item) => sum + item.amount, 0)
-    const outstanding = Math.max(0, project.value - received)
+    const outstanding = Math.max(0, project.value - (receivedByProject.get(project.id) ?? 0))
 
     // Só um vencimento explicitamente registrado pode gerar este alerta.
     // Sem vínculo financeiro, sugerimos conferir, não afirmar inadimplência.
-    const installment = workspace.projectInstallments
-      .filter(item => item.projectId === project.id && installmentBalance(item, workspace.transactions) > 0)
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-      .find(item => { const days = daysUntil(item.dueDate, today); return days !== null && days <= 7 })
+    const installment = (installmentsByProject.get(project.id) ?? [])
+      .find(item => {
+        const days = daysUntil(item.dueDate, today)
+        return days !== null && days <= 7 && installmentBalance(item, receiptsByProject.get(project.id) ?? []) > 0
+      })
     if (installment) {
       const days = daysUntil(installment.dueDate, today)!
       actions.push({
@@ -84,7 +111,7 @@ export function buildTodayActions(
       continue
     }
 
-    const briefing = workspace.projectBriefings.find(item => item.id === project.briefingId)
+    const briefing = briefingsById.get(project.briefingId)
     const missing = briefing ? unansweredRequiredQuestionIds(briefing) : []
     if (missing.length) {
       const firstQuestion = briefing!.sections.flatMap(section => section.questions).find(item => item.id === missing[0])
@@ -98,7 +125,7 @@ export function buildTodayActions(
       continue
     }
 
-    const pending = workspace.tasks.filter(task => task.projectId === project.id && !task.done)
+    const pending = pendingByProject.get(project.id) ?? []
     if (pending.length) {
       actions.push({
         id: `project:${project.id}`, entityId: project.id, target: 'project', tab: 'tarefas',
@@ -110,7 +137,7 @@ export function buildTodayActions(
       continue
     }
 
-    const delivery = workspace.projectDeliveries.find(item => item.projectId === project.id)
+    const delivery = deliveriesByProject.get(project.id)
     if (project.status === 'revisao' || (delivery?.approvedAt && !delivery.deliveredAt)) {
       actions.push({
         id: `project:${project.id}`, entityId: project.id, target: 'project', tab: 'entrega',
@@ -137,7 +164,7 @@ export function buildTodayActions(
 
   for (const lead of workspace.leads) {
     if (lead.convertedProjectId || lead.stage === 'perdido') continue
-    const revision = latestRevision(workspace.leadProposals.find(item => item.leadId === lead.id))
+    const revision = latestRevision(proposalsByLead.get(lead.id))
     const accepted = revision?.status === 'aceita'
     const title = accepted ? 'Converter proposta aceita em projeto' :
       lead.stage === 'ganho' ? 'Regularizar oportunidade marcada como ganha' :
