@@ -4,6 +4,7 @@ import { ArrowRight, FolderKanban, MessageCircle, Pencil, Plus, Search, Trash2, 
 import { state, addLead, convertLeadToProject, persistenceError, removeItem, updateLead } from '../lib/store'
 import { brl, leadLabels, todayLocal, whatsappHref } from '../lib/format'
 import { initialConversionPrice, serviceSuggestion } from '../lib/pricing'
+import { confirmAction } from '../lib/confirmation'
 import { acceptedPrice, latestRevision, proposalStatusLabel } from '../lib/proposals'
 import LeadProposalView from './LeadProposalView.vue'
 import type { Lead, LeadStage, ProjectStatus } from '../lib/types'
@@ -84,10 +85,10 @@ function submitConversion() {
     emit('openProject', project.id, feedback.value)
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'Não foi possível converter a oportunidade.' }
 }
-function drop(id: string) {
+async function drop(id: string) {
   const linkedProject = state.projects.find(project => project.sourceLeadId === id)
   const prompt = linkedProject ? `Excluir esta oportunidade? O projeto “${linkedProject.name}” permanecerá, mas perderá o vínculo com a oportunidade.` : 'Excluir esta oportunidade?'
-  if (confirm(prompt)) removeItem('leads', id)
+  if (await confirmAction({ title: 'Excluir oportunidade?', message: prompt, confirmLabel: 'Excluir oportunidade', tone: 'danger' })) removeItem('leads', id)
 }
 function openLinkedProject(lead: Lead) { if (lead.convertedProjectId) emit('openProject', lead.convertedProjectId) }
 function announceStageSaved() { feedback.value = persistenceError.value || 'Etapa atualizada.' }
