@@ -14,6 +14,7 @@
 - [x] Detalhe do projeto com edição, tarefas, recebimentos e despesas
 - [x] Etapa 2: biblioteca de serviços contextualizada e retorno à oportunidade/projeto de origem
 - [x] Etapa 2: links categorizados de materiais e ferramentas dentro do projeto; formato local v5 com migração de v4
+- [x] Etapa 3: assistente guiado de atendimento, rascunho e retomada de oportunidades, serviço/valor ainda indefinidos e conversão com briefing configurável e tarefas automáticas
 - [x] Testes de domínio, conversão, persistência e migração
 - [x] GitHub Actions para checagem de tipos e build
 - [x] Executar testes, typecheck e build no workspace local
