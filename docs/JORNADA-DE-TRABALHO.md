@@ -35,7 +35,7 @@ Os modelos de serviço e de questionário só devem ser alterados quando o produ
 
 **Resumo** — cliente, status, prazo, preço acordado, recebido, despesas, *a receber* e **próxima ação sugerida**.
 
-**Briefing** — modelo já instanciado para esse projeto; uma seção por vez; perguntas condicionais; respostas salvas por projeto.
+**Briefing** — modelo já instanciado para esse projeto; durante edição, uma seção por vez com perguntas condicionais. Após salvar, apresentar todas as respostas visíveis agrupadas por seção em **modo de consulta**, com botão explícito para editar. Ao reabrir um briefing já respondido, começar em consulta.
 
 **Tarefas** — geradas automaticamente a partir do modelo; adicionar tarefas avulsas ou específicas; checklist e progresso sem duplicação.
 
