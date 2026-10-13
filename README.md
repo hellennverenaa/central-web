@@ -31,18 +31,18 @@ npm run build
 | Plano de lançamento | 17 ações de 30 dias com semana, prioridade, horas e status editável |
 | Serviços e preços | Biblioteca de modelos reutilizáveis, com simulação ilustrativa de piso e preço sugerido |
 | Oportunidades | CRM com vínculo a serviço, assistente de Novo atendimento, retomada e conversão em projeto |
-| Projetos | Lista e detalhes com oportunidade, serviço, briefing, tarefas, materiais/links e caixa vinculados |
+| Projetos | Lista e detalhes com oportunidade, serviço, briefing, tarefas, materiais/links, parcelas previstas, revisão/entrega e caixa vinculado |
 | Financeiro | Entradas e saídas gerais ou associadas a um projeto |
 | Publicações | 7 ideias para Instagram e WhatsApp; calendário, legenda e resultado |
 | Briefing | 13 perguntas de atendimento com fases, justificativa e próximo passo; copiar perguntas |
 | Tarefas | Checklist pessoal e tarefas associadas a projetos |
-| Dados e backup | Exportação/importação JSON v5, migração v1/v2/v3/v4, restaurar modelos, dados fictícios |
+| Dados e backup | Exportação/importação JSON v6, migração v1/v2/v3/v4/v5, restaurar modelos, dados fictícios |
 
 Os modelos de plano, serviço, publicação e briefing **foram extraídos da planilha original**, sem incluir nomes/contatos de clientes reais. Números no simulador são somente exemplos, **não são pesquisa de mercado ou proposta comercial definitiva**.
 
 ## Persistência / atualização do workspace
 
-O schema atual é `central-web:workspace:v5`. Na primeira abertura, dados v1, v2, v3 ou v4 são migrados para a nova chave, mantendo os registros antigos. As chaves anteriores ficam preservadas. Backups JSON v1, v2, v3, v4 e v5 são aceitos; backups antigos vinculam uma oportunidade a um serviço somente quando o nome corresponde a um único item do catálogo.
+O schema atual é `central-web:workspace:v6`. Na primeira abertura, dados v1, v2, v3 ou v4 são migrados para a nova chave, mantendo os registros antigos. As chaves anteriores ficam preservadas. Backups JSON v1, v2, v3, v4, v5 e v6 são aceitos; backups antigos vinculam uma oportunidade a um serviço somente quando o nome corresponde a um único item do catálogo.
 
 Oportunidades guardam o ID do serviço e do projeto convertido. Projetos guardam o serviço e a oportunidade de origem; tarefas e lançamentos guardam o ID do projeto. Ao excluir uma entidade relacionada, os vínculos restantes são limpos e tarefas/lançamentos ficam preservados. A estimativa comercial, o preço combinado e o dinheiro recebido continuam separados.
 
@@ -82,6 +82,7 @@ Consulte `AGENTS.md`, `docs/PRODUTO.md`, `docs/ROADMAP.md`, `docs/ARQUITETURA.md
 - O botão **Novo atendimento** abre um assistente em quatro etapas: cliente, serviço, proposta e decisão. É possível salvar a oportunidade em qualquer momento, retomar pelo CRM ou criar o projeto com briefing específico e tarefas copiadas do modelo.
 - Trabalhos contratados fora do CRM continuam podendo ser cadastrados diretamente na página Projetos.
 - O assistente não registra pagamento automaticamente e impede conversões duplicadas.
+- **Etapa 5:** a aba **Financeiro** do projeto permite cadastrar parcelas previstas com vencimento e associar pagamentos já registrados, inclusive parciais; uma previsão nunca aumenta o saldo realizado. A aba **Entrega** registra envio para revisão, aprovação e entrega final, com links em Materiais.
 - **Hoje** agrupa tarefas de acompanhamento com uma ação por projeto, sem adicionar estados artificiais. Ao clicar, abre a aba relevante do projeto ou retoma um atendimento. Prazos urgentes usam apenas datas cadastradas; valores a receber não são classificados como pagamentos vencidos.
 - O detalhe do projeto reúne serviço, oportunidade de origem, tarefas, recebimentos, despesas, materiais/ferramentas e saldo do projeto.
 - Na aba **Materiais e ferramentas**, é possível cadastrar, editar, abrir e excluir links HTTP/HTTPS categorizados. A Central não hospeda arquivos nessa versão.
