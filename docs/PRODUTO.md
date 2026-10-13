@@ -11,12 +11,15 @@ Central particular para lançar e operar um microestúdio de convites digitais, 
 5. Usar **Novo atendimento** para registrar cliente, escolher serviço ou deixar indefinido, revisar valor estimado e salvar oportunidade ou converter após confirmação. Retomar atendimentos pelo CRM.
 6. No detalhe de cada **Projeto**, acompanhar briefing, tarefas, materiais e ferramentas (links), recebimentos, despesas e saldo relacionado.
 7. Usar **Tarefas** para ações pessoais ou vinculadas; acompanhar os totais no **Financeiro**.
-8. Acompanhar indicadores na **Visão geral** e usar **Dados & backup**.
+8. Consultar **Hoje** para ver próximos passos calculados automaticamente (prazos, briefings incompletos, tarefas e oportunidades abertas), além dos indicadores na **Visão geral** e **Dados & backup**.
 
 ## Regras de negócio
 
 - Oportunidade estimada não é faturamento nem dinheiro recebido.
 - Valor de projeto não é automaticamente entrada no caixa.
+- A visão **Hoje** não cria registros: exibe apenas uma prioridade por projeto e as oportunidades/tarefas avulsas que exigem acompanhamento.
+- Prazos vencidos/para hoje/próximos 7 dias usam **somente** as datas cadastradas dos projetos. Tarefas sem prazo não recebem data inventada.
+- Valor contratado ainda não recebido gera sugestão de revisão do financeiro, **não** cobrança vencida, pois o protótipo ainda não possui parcelas nem vencimentos acordados.
 - Projetos convertidos preservam os IDs da oportunidade e do serviço; tarefas e lançamentos podem apontar para o projeto.
 - O assistente permite salvar o atendimento em qualquer etapa após informar o cliente; oportunidades retomadas são editadas, não duplicadas.
 - A etapa **ganho** é consequência da conversão em projeto: não se marca uma oportunidade como ganha sem criar o projeto.
