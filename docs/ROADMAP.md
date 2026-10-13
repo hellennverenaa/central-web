@@ -16,6 +16,7 @@
 - [x] Etapa 2: links categorizados de materiais e ferramentas dentro do projeto; formato local v5 com migração de v4
 - [x] Etapa 3: assistente guiado de atendimento, rascunho e retomada de oportunidades, serviço/valor ainda indefinidos e conversão com briefing configurável e tarefas automáticas
 - [x] Etapa 4: visão Hoje com prazos, briefings, tarefas, negociação e revisão financeira calculados a partir dos registros atuais; atalhos para o contexto certo
+- [x] Etapa 5: parcelas e vencimentos previstos vinculados a recebimentos confirmados, marcos de revisão/aprovação/entrega e migração v5→v6
 - [x] Testes de domínio, conversão, persistência e migração
 - [x] GitHub Actions para checagem de tipos e build
 - [x] Executar testes, typecheck e build no workspace local
@@ -35,7 +36,7 @@
 
 - [x] Converter oportunidade em projeto no protótipo local; uso comercial real depende de backend e autorização
 - [ ] Gerar proposta/orçamento com escopo e rodadas de revisão
-- [ ] Registrar pagamento parcial e contas a receber (distinto de caixa)
+- [x] Registrar parcelas previstas e associar manualmente um ou mais recebimentos reais (inclusive parciais), sem somar previsões ao caixa
 - [ ] Vincular briefing a cada projeto com controle de acesso
 - [ ] Melhorar calendário com datas reais e histórico de resultados
 
