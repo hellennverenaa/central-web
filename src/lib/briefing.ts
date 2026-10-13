@@ -34,22 +34,35 @@ export function validateBriefingTemplate(template: { name: string; sections: Arr
   return ''
 }
 
-export function isQuestionVisible(question: BriefingQuestionDefinition, answers: Record<string, BriefingAnswer>): boolean {
-  const condition = question.condition
-  if (!condition) return true
-  const answer = answers[condition.questionId]
-  if (condition.operator === 'answered') {
-    return Array.isArray(answer) ? answer.length > 0 : Boolean(answer?.trim())
+export function isQuestionVisible(
+  question: BriefingQuestionDefinition,
+  answers: Record<string, BriefingAnswer>,
+  questions: readonly BriefingQuestionDefinition[] = [question],
+): boolean {
+  const byId = new Map(questions.map(item => [item.id, item]))
+  const visible = (current: BriefingQuestionDefinition, visited: Set<string>): boolean => {
+    if (visited.has(current.id)) return false
+    const condition = current.condition
+    if (!condition) return true
+    const parent = byId.get(condition.questionId)
+    // Uma condição encadeada não pode liberar um campo se a pergunta-pai estiver oculta.
+    if (parent && !visible(parent, new Set([...visited, current.id]))) return false
+    if (!parent && questions.length > 1) return false
+    const answer = answers[condition.questionId]
+    if (condition.operator === 'answered') {
+      return Array.isArray(answer) ? answer.length > 0 : Boolean(answer?.trim())
+    }
+    if (condition.operator === 'equals') return !Array.isArray(answer) && answer === condition.value
+    return Array.isArray(answer)
+      ? answer.includes(condition.value ?? '')
+      : answer?.split(',').map(value => value.trim()).includes(condition.value ?? '') ?? false
   }
-  if (condition.operator === 'equals') {
-    return !Array.isArray(answer) && answer === condition.value
-  }
-  return Array.isArray(answer) ? answer.includes(condition.value ?? '') : answer?.split(',').map(value => value.trim()).includes(condition.value ?? '') ?? false
+  return visible(question, new Set())
 }
 
 export function requiredQuestionIds(briefing: ProjectBriefing): string[] {
   const questions = briefing.sections.flatMap(section => section.questions)
-  return questions.filter(question => question.required && isQuestionVisible(question, briefing.answers)).map(question => question.id)
+  return questions.filter(question => question.required && isQuestionVisible(question, briefing.answers, questions)).map(question => question.id)
 }
 
 export function unansweredRequiredQuestionIds(briefing: ProjectBriefing): string[] {
