@@ -22,6 +22,8 @@ const selectedProjectId = ref('')
 const projectNotice = ref('')
 const focusedLeadId = ref('')
 const focusedServiceId = ref('')
+const serviceOrigin = ref<{ type: 'lead' | 'project'; id: string } | null>(null)
+const serviceOriginLabel = computed(() => serviceOrigin.value?.type === 'lead' ? 'Voltar à oportunidade' : serviceOrigin.value?.type === 'project' ? 'Voltar ao projeto' : '')
 const pedidoNovoAtendimento = ref(0)
 const nav = [
   { id: 'dashboard' as MainPage, text: 'Visão geral', icon: LayoutDashboard },
@@ -43,12 +45,15 @@ const gruposMenu = [
 ]
 const title = computed(() => page.value === 'project-detail' ? state.projects.find(project => project.id === selectedProjectId.value)?.name || 'Detalhe do projeto' : nav.find(item => item.id === page.value)?.text || 'Central')
 const date = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
-function navigate(next: MainPage) { page.value = next; mobileNav.value = false }
+function navigate(next: MainPage) { page.value = next; mobileNav.value = false; serviceOrigin.value = null; focusedServiceId.value = '' }
 function iniciarAtendimento() { pedidoNovoAtendimento.value += 1; navigate('leads') }
 function atendimentoIniciado() { pedidoNovoAtendimento.value = 0 }
-function openProject(id: string, notice = '') { selectedProjectId.value = id; projectNotice.value = notice; page.value = 'project-detail'; mobileNav.value = false }
-function openLead(id: string) { focusedLeadId.value = id; page.value = 'leads'; mobileNav.value = false }
+function openProject(id: string, notice = '') { selectedProjectId.value = id; projectNotice.value = notice; page.value = 'project-detail'; mobileNav.value = false; serviceOrigin.value = null }
+function openLead(id: string) { focusedLeadId.value = id; page.value = 'leads'; mobileNav.value = false; serviceOrigin.value = null }
 function openService(id: string) { focusedServiceId.value = id; page.value = 'services'; mobileNav.value = false }
+function openLeadService(id: string, leadId: string) { serviceOrigin.value = { type: 'lead', id: leadId }; openService(id) }
+function openProjectService(id: string) { serviceOrigin.value = { type: 'project', id: selectedProjectId.value }; openService(id) }
+function returnFromService() { const origin = serviceOrigin.value; if (!origin) return; if (origin.type === 'lead') openLead(origin.id); else openProject(origin.id) }
 </script>
 
 <template>
@@ -85,9 +90,9 @@ function openService(id: string) { focusedServiceId.value = id; page.value = 'se
         <p v-if="persistenceError" class="storage-error" role="alert">{{ persistenceError }}</p>
         <DashboardView v-if="page === 'dashboard'" @go="navigate" @open-project="openProject" @iniciar-atendimento="iniciarAtendimento" />
         <PlanView v-else-if="page === 'plan'" />
-        <ServicesView v-else-if="page === 'services'" :focus-service-id="focusedServiceId" />
-        <LeadsView v-else-if="page === 'leads'" :focus-lead-id="focusedLeadId" :pedido-novo-atendimento="pedidoNovoAtendimento" @atendimento-iniciado="atendimentoIniciado" @open-project="openProject" @open-service="openService" />
-        <ProjectDetailView v-else-if="page === 'project-detail'" :project-id="selectedProjectId" :notice="projectNotice" @go="navigate" @open-lead="openLead" @open-service="openService" />
+        <ServicesView v-else-if="page === 'services'" :focus-service-id="focusedServiceId" :origin-label="serviceOriginLabel" @back="returnFromService" />
+        <LeadsView v-else-if="page === 'leads'" :focus-lead-id="focusedLeadId" :pedido-novo-atendimento="pedidoNovoAtendimento" @atendimento-iniciado="atendimentoIniciado" @open-project="openProject" @open-service="openLeadService" />
+        <ProjectDetailView v-else-if="page === 'project-detail'" :project-id="selectedProjectId" :notice="projectNotice" @go="navigate" @open-lead="openLead" @open-service="openProjectService" />
         <ProjectsView v-else-if="page === 'projects'" @open-project="openProject" />
         <FinanceView v-else-if="page === 'finance'" @open-project="openProject" />
         <PublicationsView v-else-if="page === 'publications'" />
