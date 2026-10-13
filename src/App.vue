@@ -15,6 +15,7 @@ import PublicationsView from './views/PublicationsView.vue'
 import BriefingView from './views/BriefingView.vue'
 import ProjectDetailView from './views/ProjectDetailView.vue'
 import NewAttendanceWizard from './views/NewAttendanceWizard.vue'
+import ConfirmationDialog from './views/ConfirmationDialog.vue'
 import { persistenceError, state } from './lib/store'
 
 type MainPage = 'dashboard' | 'today' | 'plan' | 'services' | 'leads' | 'projects' | 'finance' | 'publications' | 'briefing' | 'tasks' | 'data'
@@ -69,6 +70,7 @@ function returnFromService() { const origin = serviceOrigin.value; if (!origin) 
 
 <template>
   <div class="app-shell">
+    <ConfirmationDialog />
     <NewAttendanceWizard v-if="attendanceWizardOpen" :initial-lead-id="attendanceLeadId" @close="attendanceWizardOpen = false" @open-lead="wizardOpenLead" @open-project="wizardOpenProject" @create-direct-project="wizardDirectProject" />
     <div v-if="mobileNav" class="scrim" @click="mobileNav = false"></div>
     <aside class="sidebar" :class="{ 'sidebar-open': mobileNav }">
