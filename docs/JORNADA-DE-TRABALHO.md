@@ -1,6 +1,6 @@
 # Jornada de trabalho simplificada — proposta de UX
 
-> Documento de produto. As etapas 1–4 do fluxo local já incluem menu agrupado, detalhes de projeto, assistente de atendimento, conversão com briefing/tarefas e visão Hoje derivada dos registros. Automação de propostas formais, cobranças previstas e API segura permanece planejada.
+> Documento de produto. As etapas 1–4 do fluxo local já incluem menu agrupado, detalhes de projeto, assistente de atendimento, conversão com briefing/tarefas e visão Hoje derivada dos registros. Propostas formais e API segura permanecem planejadas; parcelas previstas e revisão/entrega já têm registros locais explícitos.
 
 ## Objetivo
 
@@ -39,9 +39,9 @@ Os modelos de serviço e de questionário só devem ser alterados quando o produ
 
 **Tarefas** — geradas automaticamente a partir do modelo; adicionar tarefas avulsas ou específicas; checklist e progresso sem duplicação.
 
-**Financeiro** — registrar entradas ou saídas do projeto; distinguir **valor contratado**, **previsto a receber**, **recebido** e **saldo de caixa**.
+**Financeiro** — registrar entradas ou saídas do projeto e parcelas com vencimentos combinados; distinguir **valor contratado**, **parcelas previstas**, **recebido** e **saldo de caixa**. Vincular pagamentos reais manualmente à parcela, permitindo recebimentos parciais sem criar novas entradas.
 
-**Entrega** — futura etapa para aprovações, revisões e links de publicação.
+**Entrega** — aba para registrar datas reais de revisão, aprovação e entrega. Os links de publicação/entrega continuam vinculados via Materiais; confirmar a entrega muda o status do projeto.
 
 ## Automação planejada: máquina de estados por atendimento/projeto
 
@@ -83,5 +83,5 @@ Os modelos de serviço e de questionário só devem ser alterados quando o produ
    - Exibe no máximo uma ação principal por projeto; ações críticas de prazo têm prioridade.
    - Abre a aba correspondente no projeto, retoma a oportunidade ou leva às tarefas independentes.
    - Um saldo a receber **não tem vencimento inferido**, e nenhuma ação gera lançamentos financeiros automáticos.
-4. Adicionar etapas de cobrança prevista e revisão/entrega, sem lançar receita antes da confirmação.
+4. [x] Adicionar etapas de cobrança prevista e revisão/entrega, sem lançar receita antes da confirmação. A visão Hoje só alerta vencimentos informados e não pressupõe inadimplência.
 5. Migrar persistência para API segura e TypeORM/PostgreSQL **após** validar a jornada no frontend.
