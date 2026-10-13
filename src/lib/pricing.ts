@@ -9,3 +9,15 @@ export function serviceFloor(service: Pick<Service, 'hours' | 'hourlyRate' | 'ex
 export function serviceSuggestion(service: Pick<Service, 'hours' | 'hourlyRate' | 'extras' | 'contingency'>): number {
   return Math.ceil(serviceFloor(service) / 10) * 10
 }
+
+/**
+ * A estimativa informada na oportunidade tem precedência sobre a sugestão
+ * do catálogo. Zero significa que ainda não houve estimativa.
+ */
+export function initialConversionPrice(
+  estimatedValue: number,
+  service: Pick<Service, 'hours' | 'hourlyRate' | 'extras' | 'contingency'> | null,
+): number {
+  if (Number.isFinite(estimatedValue) && estimatedValue > 0) return estimatedValue
+  return service ? serviceSuggestion(service) : 0
+}
