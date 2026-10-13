@@ -21,6 +21,7 @@ Central particular para lançar e operar um microestúdio de convites digitais, 
 - Prazos vencidos/para hoje/próximos 7 dias usam **somente** as datas cadastradas dos projetos. Tarefas sem prazo não recebem data inventada.
 - Valor contratado ainda não recebido gera sugestão de revisão do financeiro, **não** cobrança vencida, pois o protótipo ainda não possui parcelas nem vencimentos acordados.
 - Projetos convertidos preservam os IDs da oportunidade e do serviço; tarefas e lançamentos podem apontar para o projeto.
+- **Briefing:** ao salvar, a área mostra uma consulta de todas as respostas por seção, sem campos de formulário. Para alterar algo, use **Editar respostas** (ou **Continuar preenchimento** se houver perguntas obrigatórias pendentes). Após confirmar o salvamento, a consulta volta a aparecer. O estado é derivado das respostas persistidas; não há mudança de schema.
 - O assistente permite salvar o atendimento em qualquer etapa após informar o cliente; oportunidades retomadas são editadas, não duplicadas.
 - A etapa **ganho** é consequência da conversão em projeto: não se marca uma oportunidade como ganha sem criar o projeto.
 - Ao criar o projeto pelo assistente, é possível selecionar outro modelo de briefing somente para aquele projeto; o catálogo e os projetos existentes não são modificados.
