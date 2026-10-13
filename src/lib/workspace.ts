@@ -201,14 +201,15 @@ function isValidWorkspaceV6(x: unknown): x is Workspace {
   if (!isValidWorkspaceCore(x) || x.schemaVersion !== 6 ||
       !isValidWorkspaceV5({ ...x, schemaVersion: 5 })) return false
   if (!object(x)) return false
-  if (!isArray(x.projectInstallments, row =>
+  const payload = x as unknown as Record<string, unknown>
+  if (!isArray(payload.projectInstallments, row =>
       ['id', 'projectId', 'title', 'dueDate', 'createdAt'].every(key => str(row[key])) &&
       !validateInstallment(row as unknown as ProjectInstallment)) ||
-      !isArray(x.projectDeliveries, row =>
+      !isArray(payload.projectDeliveries, row =>
         ['projectId', 'reviewSentAt', 'approvedAt', 'deliveredAt', 'notes'].every(key => str(row[key])) &&
         !validateDelivery(row as unknown as ProjectDelivery))) return false
-  const installments = x.projectInstallments as ProjectInstallment[]
-  const deliveries = x.projectDeliveries as ProjectDelivery[]
+  const installments = payload.projectInstallments as ProjectInstallment[]
+  const deliveries = payload.projectDeliveries as ProjectDelivery[]
   const projects = new Set(x.projects.map(project => project.id))
   const transactions = new Map(x.transactions.map(tx => [tx.id, tx]))
   const usedTransactions = new Set<string>()
