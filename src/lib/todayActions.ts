@@ -128,7 +128,7 @@ export function buildTodayActions(
         id: `project:${project.id}`, entityId: project.id, target: 'project', tab: 'financeiro',
         kind: 'financeiro', priority: 'acompanhar', sortOrder: 80,
         title: 'Revisar valor ainda a receber', subject: project.name,
-        description: 'Confira o que já foi recebido e o que ainda falta registrar. Confira as cobranças combinadas. Nenhuma data foi inventada.',
+        description: 'Confira o que já foi recebido e o que ainda falta registrar. Nenhuma data de cobrança foi definida.',
         cta: 'Ver financeiro',
       })
     }
