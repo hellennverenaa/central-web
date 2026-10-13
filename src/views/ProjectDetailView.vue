@@ -5,7 +5,7 @@ import { state, addProjectMaterial, addTask, addTransaction, persistenceError, r
 import { brl, dateBR, projectLabels, todayLocal } from '../lib/format'
 import { serviceSuggestion } from '../lib/pricing'
 import { projectMaterialCategories } from '../lib/projectMaterials'
-import type { TodayProjectTab } from '../lib/todayActions'
+import { buildTodayActions, type TodayProjectTab } from '../lib/todayActions'
 import { briefingProgress, isQuestionVisible, unansweredRequiredQuestionIds } from '../lib/briefing'
 import type { BriefingAnswer, BriefingQuestionDefinition, ProjectMaterial, ProjectMaterialCategory, ProjectStatus, Transaction, TransactionType } from '../lib/types'
 
@@ -46,6 +46,7 @@ const abaAtiva = ref<'resumo' | 'briefing' | 'tarefas' | 'materiais' | 'financei
 const secaoBriefingAtiva = ref('')
 const tarefasPendentes = computed(() => tasks.value.filter(task => !task.done).length)
 const valorAReceber = computed(() => Math.max(0, (project.value?.value ?? 0) - received.value))
+const projectNextAction = computed(() => buildTodayActions(state, todayLocal()).find(item => item.target === 'project' && item.entityId === props.projectId))
 const projectForm = reactive({ name: '', client: '', serviceId: '', status: 'planejado' as ProjectStatus, deadline: todayLocal(), value: 0 })
 const taskForm = reactive({ title: '' })
 const transactionForm = reactive({ description: '', kind: 'entrada' as TransactionType, amount: 0, date: todayLocal() })
@@ -227,24 +228,15 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
     <section v-if="abaAtiva === 'resumo'" class="project-overview" aria-label="Resumo e próximos passos">
       <div class="surface project-next-step">
         <p class="section-kicker">PRÓXIMA AÇÃO SUGERIDA</p>
-        <template v-if="missingBriefingAnswers > 0">
-          <h2>Complete o briefing</h2>
-          <p>Faltam {{ missingBriefingAnswers }} resposta(s) obrigatória(s). O questionário já está preparado para este projeto.</p>
-          <button class="btn btn-dark" @click="abaAtiva = 'briefing'">Continuar briefing</button>
-        </template>
-        <template v-else-if="tarefasPendentes > 0">
-          <h2>Avance na produção</h2>
-          <p>Você tem {{ tarefasPendentes }} tarefa(s) pendente(s) neste projeto.</p>
-          <button class="btn btn-dark" @click="abaAtiva = 'tarefas'">Ver tarefas</button>
-        </template>
-        <template v-else-if="valorAReceber > 0">
-          <h2>Acompanhe o pagamento</h2>
-          <p>Há {{ brl(valorAReceber) }} do valor combinado ainda não registrado como recebido.</p>
-          <button class="btn btn-dark" @click="abaAtiva = 'financeiro'">Ver financeiro</button>
+        <template v-if="projectNextAction && projectNextAction.target === 'project'">
+          <h2>{{ projectNextAction.title }}</h2>
+          <p>{{ projectNextAction.description }}</p>
+          <button v-if="projectNextAction.kind === 'prazo'" class="btn btn-dark" @click="editProject">Revisar prazo e status</button>
+          <button v-else class="btn btn-dark" @click="abaAtiva = projectNextAction.tab">{{ projectNextAction.cta }}</button>
         </template>
         <template v-else>
-          <h2>Atividades em dia</h2>
-          <p>Revise as informações do projeto e acompanhe a entrega.</p>
+          <h2>Sem pendências identificadas</h2>
+          <p>Não há ações pendentes identificáveis pelos registros deste projeto. Revise a entrega e as informações quando necessário.</p>
         </template>
       </div>
       <div class="project-overview-shortcuts">
