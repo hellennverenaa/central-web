@@ -5,7 +5,7 @@ Aplicação local e individual para organizar o lançamento de um pequeno estúd
 ## Stack atual
 
 - Vue 3 + TypeScript + Vite
-- CSS responsivo temporário e `lucide-vue-next`
+- CSS responsivo com paletas completas Light/Dark e `lucide-vue-next`
 - Vue reativo + `localStorage` para demonstrar fluxos sem backend
 
 **Arquitetura planejada:** Vue + Node.js/Express + TypeORM + PostgreSQL, com Docker Compose durante desenvolvimento. Supabase **não é obrigatório**. Veja [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
@@ -40,6 +40,15 @@ npm run build
 
 Os modelos de plano, serviço, publicação e briefing **foram extraídos da planilha original**, sem incluir nomes/contatos de clientes reais. Números no simulador são somente exemplos, **não são pesquisa de mercado ou proposta comercial definitiva**.
 
+## Aparência e desempenho
+
+- O botão **Dark/Light** fica no cabeçalho e alterna as cores **sem recarregar** a página. A preferência explícita é armazenada separadamente como `central-web:theme`; quando não há escolha salva, a Central segue o tema claro/escuro do sistema.
+- `src/theme-colors.css` contém as variações de todas as cores da interface; `src/style.css` utiliza os tokens correspondentes. Ao adicionar uma nova cor, crie os tokens claro/escuro para evitar elementos ilegíveis.
+- As áreas da Central são carregadas sob demanda por `defineAsyncComponent`, mantendo o painel inicial e o modal global disponíveis sem precisar carregar o código de todas as telas.
+- Alterações em campos ligados ao workspace usam uma gravação agrupada em aproximadamente **300 ms**; ações explícitas de salvar, importar ou excluir persistem imediatamente, e operações pendentes são gravadas quando a página é ocultada/fechada.
+- A lógica da visão **Hoje** indexa as relações entre projetos, tarefas, parcelas, briefings e propostas uma vez por atualização, em vez de percorrer todas as coleções a cada projeto.
+- Estas melhorias reduzem trabalho e carregamento inicial, mas **não substituem medições reais** de desempenho e testes visuais no seu dispositivo.
+
 ## Persistência / atualização do workspace
 
 O schema atual é `central-web:workspace:v7`. Na primeira abertura, dados v1, v2, v3 ou v4 são migrados para a nova chave, mantendo os registros antigos. As chaves anteriores ficam preservadas. Backups JSON v1, v2, v3, v4, v5, v6 e v7 são aceitos; backups antigos vinculam uma oportunidade a um serviço somente quando o nome corresponde a um único item do catálogo.
@@ -61,8 +70,11 @@ src/
   App.vue                    navegação
   lib/catalog.ts             modelos extraídos da planilha
   lib/types.ts               contratos do domínio
-  lib/store.ts               armazenamento temporário e persistência reativa
-  lib/workspace.ts           schema v3, migração e validação de backups
+  lib/store.ts               armazenamento temporário com gravações agrupadas
+  lib/theme.ts               modo claro/escuro e preferência do navegador
+  lib/writeScheduler.ts      coalescência e salvamento imediato
+  theme-colors.css           paletas light/dark completas
+  lib/workspace.ts           schema v7, migração e validação de backups
   views/                     páginas da central
 .github/workflows/ci.yml     verificação em pull request
 ```
