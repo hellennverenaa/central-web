@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { Pencil, Plus, Trash2 } from 'lucide-vue-next'
 import { state, addProjectInstallment, updateProjectInstallment, removeProjectInstallment, persistenceError } from '../lib/store'
 import { installmentBalance, installmentReceived } from '../lib/projectMilestones'
+import { confirmAction } from '../lib/confirmation'
 import { brl, dateBR, todayLocal } from '../lib/format'
 import type { ProjectInstallment } from '../lib/types'
 
@@ -38,8 +39,8 @@ function save() {
     showForm.value = false
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'Não foi possível salvar a previsão.' }
 }
-function drop(item: ProjectInstallment) {
-  if (!confirm(`Excluir a previsão “${item.title}”? Os lançamentos reais continuarão no financeiro.`)) return
+async function drop(item: ProjectInstallment) {
+  if (!(await confirmAction({ title: 'Excluir parcela prevista?', message: `A previsão “${item.title}” será removida. Os recebimentos já lançados continuarão no financeiro.`, confirmLabel: 'Excluir previsão', tone: 'danger' }))) return
   try { removeProjectInstallment(item.id, props.projectId); feedback.value = persistenceError.value || 'Previsão excluída sem alterar o caixa.' }
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'Não foi possível excluir a previsão.' }
 }
