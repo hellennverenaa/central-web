@@ -6,6 +6,7 @@ import { brl, dateBR, projectLabels, todayLocal } from '../lib/format'
 import { serviceSuggestion } from '../lib/pricing'
 import type { ProjectStatus } from '../lib/types'
 
+import { confirmAction } from '../lib/confirmation'
 const props = defineProps<{ requestNewProject?: number }>()
 const emit = defineEmits<{ openProject: [id: string, notice?: string] }>()
 const statuses: ProjectStatus[] = ['planejado', 'andamento', 'revisao', 'entregue']
@@ -30,7 +31,7 @@ function submit() {
     emit('openProject', project.id, feedback.value)
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'Não foi possível salvar o projeto.' }
 }
-function drop(id: string) { if (confirm('Excluir este projeto? Tarefas e lançamentos serão preservados sem vínculo; o briefing, as respostas e os links de materiais deste projeto serão removidos.')) removeItem('projects', id) }
+async function drop(id: string) { if (await confirmAction({ title: 'Excluir projeto?', message: 'O briefing, as respostas, os materiais, as parcelas previstas e os registros de entrega deste projeto serão removidos. Tarefas e lançamentos financeiros serão preservados sem vínculo.', confirmLabel: 'Excluir projeto', tone: 'danger' })) removeItem('projects', id) }
 function announceStatus() { feedback.value = persistenceError.value || 'Status atualizado.' }
 </script>
 
