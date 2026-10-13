@@ -299,7 +299,33 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
       </div>
     </section>
 
-    <section v-if="abaAtiva === 'briefing' && projectBriefing" class="surface project-briefing"><header class="project-briefing-header"><div><p class="section-kicker">BRIEFING DESTE PROJETO</p><h2>{{ projectBriefing.templateName }}</h2><p>{{ briefingProgressValue.complete }} de {{ briefingProgressValue.total }} campos obrigatórios respondidos</p></div><span class="brief-tag" :class="{ 'brief-tag-complete': briefingCompleteAndSaved }">{{ briefingCompleteAndSaved ? '✓ Concluído' : `${projectBriefing.sections.length} seções` }}</span></header>
+    <section v-if="abaAtiva === 'briefing' && projectBriefing" class="surface project-briefing">
+      <header class="project-briefing-header"><div><p class="section-kicker">BRIEFING DESTE PROJETO</p><h2>{{ projectBriefing.templateName }}</h2><p>{{ briefingProgressValue.complete }} de {{ briefingProgressValue.total }} campos obrigatórios respondidos</p></div><span class="brief-tag" :class="{ 'brief-tag-complete': briefingCompleteAndSaved }">{{ briefingMode === 'edicao' ? 'Editando' : briefingCompleteAndSaved ? '✓ Concluído' : 'Salvo · em andamento' }}</span></header>
+      <div v-if="briefingMode === 'consulta'" class="briefing-review" aria-label="Respostas salvas do briefing">
+        <div class="briefing-review-overview">
+          <div class="briefing-review-intro">
+            <CheckCircle2 v-if="briefingCompleteAndSaved" :size="26" class="briefing-review-success"/>
+            <ClipboardList v-else :size="26" class="briefing-review-pending"/>
+            <div><h3>{{ briefingCompleteAndSaved ? 'Briefing concluído' : 'Briefing salvo para continuar depois' }}</h3>
+              <p>{{ briefingCompleteAndSaved ? 'Todas as perguntas obrigatórias foram respondidas. Abaixo estão as informações registradas neste projeto.' : `Ainda faltam ${missingBriefingAnswers} pergunta(s) obrigatória(s). As respostas já registradas aparecem abaixo.` }}</p>
+              <small v-if="briefingSavedTime">Último salvamento às {{ briefingSavedTime }}</small>
+            </div>
+          </div>
+          <button type="button" class="btn btn-dark briefing-review-edit" @click="startBriefingEdit"><Pencil :size="16"/>{{ briefingCompleteAndSaved ? 'Editar respostas' : 'Continuar preenchimento' }}</button>
+        </div>
+        <div class="briefing-review-sections">
+          <section v-for="(section, index) in briefingReview" :key="section.id" class="briefing-review-section">
+            <div class="briefing-review-section-head"><span class="briefing-review-section-index">{{ index + 1 }}</span><div><h4>{{ section.title }}</h4><p v-if="section.description">{{ section.description }}</p></div></div>
+            <dl class="briefing-review-grid">
+              <div v-for="item in section.answers" :key="item.id" class="briefing-review-item">
+                <dt>{{ item.label }}</dt>
+                <dd :class="{ 'briefing-review-unanswered': !item.answered }">{{ item.answered ? item.answer : 'Não informado' }}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      </div>
+      <template v-else>
       <nav class="briefing-sections-nav" aria-label="Seções do questionário">
         <button v-for="(secao, indice) in projectBriefing.sections" :key="secao.id" class="briefing-section-button" :class="{ ativo: secaoBriefingAtiva === secao.id }" :aria-current="secaoBriefingAtiva === secao.id ? 'step' : undefined" @click="secaoBriefingAtiva = secao.id">{{ indice + 1 }}. {{ secao.title }}</button>
       </nav>
@@ -311,15 +337,15 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
           <input v-else :id="`answer-${question.id}`" :type="question.type === 'short-text' ? 'text' : question.type" :value="scalarAnswer(question.id)" @input="setScalarAnswer(question.id, $event)"/>
           <small v-if="question.example" class="briefing-answer-example">{{ question.example }}</small>
         </fieldset></template>
-      </div></section><p v-if="briefingError" class="form-error" role="alert">{{ briefingError }}</p><p v-if="briefingFeedback" class="inline-notice" role="status">{{ briefingFeedback }}</p><div class="project-briefing-actions">
-        <div v-if="briefingCompleteAndSaved" class="briefing-save-state briefing-save-complete" role="status"><CheckCircle2 :size="20"/><span><b>Briefing completo e salvo.</b><small>{{ briefingSavedTime ? `Último salvamento às ${briefingSavedTime}. ` : '' }}Se precisar corrigir algo, basta editar uma resposta.</small></span></div>
-        <div v-else-if="briefingDirty" class="briefing-save-state" role="status"><span><b>Alterações ainda não salvas.</b><small>Salve para manter as respostas. É possível salvar mesmo com perguntas pendentes.</small></span></div>
-        <div v-else class="briefing-save-state"><span><b>{{ missingBriefingAnswers }} campo(s) obrigatório(s) pendente(s).</b><small>{{ briefingSavedTime ? `Último salvamento às ${briefingSavedTime}. ` : '' }}Preencha no seu ritmo; os dados já salvos permanecem neste projeto.</small></span></div>
+      </div></section><p v-if="briefingError" class="form-error" role="alert">{{ briefingError }}</p><div class="project-briefing-actions">
+        <div class="briefing-save-state"><span><b>{{ briefingDirty ? 'Alterações ainda não salvas' : 'Modo de edição' }}</b><small>Ao salvar, você volta à visualização das respostas. Campos obrigatórios pendentes não impedem salvar um rascunho.</small></span></div>
         <div class="row-actions">
+          <button class="btn btn-outline" type="button" @click="cancelBriefingEdit">Cancelar edição</button>
           <button v-if="!isLastBriefingSection" class="btn btn-outline" type="button" @click="saveBriefing(true)">{{ briefingDirty ? 'Salvar e continuar' : 'Próxima seção' }}</button>
-          <button v-if="briefingDirty" class="btn btn-dark" type="submit">Salvar alterações</button>
+          <button class="btn btn-dark" type="submit">{{ missingBriefingAnswers === 0 ? 'Concluir e visualizar' : 'Salvar e visualizar' }}</button>
         </div>
       </div></form>
+      </template>
     </section>
     <div v-else-if="abaAtiva === 'briefing'" class="surface empty compact"><ClipboardList :size="22"/><b>Briefing não encontrado</b><p>Confira o vínculo do projeto ou escolha um modelo em Serviços.</p></div>
 
