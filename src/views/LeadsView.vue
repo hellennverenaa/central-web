@@ -7,7 +7,7 @@ import { initialConversionPrice, serviceSuggestion } from '../lib/pricing'
 import type { Lead, LeadStage, ProjectStatus } from '../lib/types'
 
 const props = defineProps<{ focusLeadId?: string | null; pedidoNovoAtendimento?: number }>()
-const emit = defineEmits<{ openProject: [id: string, notice?: string]; openService: [id: string]; atendimentoIniciado: [] }>()
+const emit = defineEmits<{ openProject: [id: string, notice?: string]; openService: [id: string, leadId: string]; atendimentoIniciado: [] }>()
 const stages: LeadStage[] = ['novo', 'conversa', 'proposta', 'ganho', 'perdido']
 const showForm = ref(false)
 const showConversion = ref(false)
@@ -105,7 +105,7 @@ watch(() => props.focusLeadId, jumpToLead, { immediate: true })
         <table v-if="filtered.length" class="data-table"><thead><tr><th>CLIENTE</th><th>SERVIÇO</th><th>ESTIMATIVA</th><th>ETAPA</th><th>AÇÕES</th></tr></thead><tbody>
           <tr v-for="lead in filtered" :id="`lead-${lead.id}`" :key="lead.id">
             <td><div class="client-cell"><div class="initial-avatar">{{ lead.name[0]?.toUpperCase() }}</div><div><strong>{{ lead.name }}</strong><small>{{ lead.contact || 'Sem contato informado' }}</small></div></div></td>
-            <td><button v-if="lead.serviceId" class="table-link" :aria-label="`Ver modelo do serviço ${lead.service}`" title="Ver modelo do serviço" @click="emit('openService', lead.serviceId)">{{ state.services.find(service => service.id === lead.serviceId)?.name ?? lead.service }} <ArrowRight :size="13"/></button><span v-else>{{ lead.service }}</span></td>
+            <td><button v-if="lead.serviceId" class="table-link" :aria-label="`Ver modelo do serviço ${lead.service}`" title="Ver modelo do serviço" @click="emit('openService', lead.serviceId, lead.id)">{{ state.services.find(service => service.id === lead.serviceId)?.name ?? lead.service }} <small class="model-link-hint">Ver modelo do serviço</small><ArrowRight :size="13"/></button><span v-else>{{ lead.service }}</span></td>
             <td class="strong">{{ brl(lead.value) }}</td>
             <td><select v-model="lead.stage" class="status-select" :class="lead.stage" :aria-label="`Etapa de ${lead.name}`" @change="announceStageSaved"><option v-for="stage in stages" :key="stage" :value="stage">{{ leadLabels[stage] }}</option></select></td>
             <td><div class="row-actions">
