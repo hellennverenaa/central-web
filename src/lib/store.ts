@@ -1,8 +1,9 @@
 import { computed, reactive, ref, watch } from 'vue'
-import type { BriefingAnswer, BriefingQuestion, BriefingTemplate, Lead, PlanItem, Project, Publication, ProjectBriefing, ProjectMaterial, Service, Task, Transaction, Workspace } from './types'
+import type { BriefingAnswer, BriefingQuestion, BriefingTemplate, Lead, PlanItem, Project, Publication, ProjectBriefing, ProjectMaterial, ProjectInstallment, ProjectDelivery, Service, Task, Transaction, Workspace } from './types'
 import { todayLocal } from './format.ts'
 import { validateBriefingTemplate } from './briefing.ts'
 import { safeProjectMaterialUrl, validateProjectMaterial, type ProjectMaterialInput } from './projectMaterials.ts'
+import { validateInstallment, validateDelivery, type InstallmentInput, type DeliveryInput } from './projectMilestones.ts'
 import { convertOpportunityToProject, createInitialWorkspace, createProjectBriefing, migrateWorkspace, readWorkspace, writeWorkspace, type ProjectConversionInput, type StoragePort } from './workspace.ts'
 
 function getBrowserStorage(): { storage?: StoragePort; warning: string } {
@@ -110,6 +111,9 @@ export function updateTransaction(id: string, input: Omit<Transaction, 'id' | 'c
   if (!transaction) throw new Error('O lançamento não foi encontrado.')
   if (input.projectId && !state.projects.some(project => project.id === input.projectId)) throw new Error('O projeto selecionado não existe mais.')
   if (!input.description.trim() || !Number.isFinite(input.amount) || input.amount <= 0 || !input.date) throw new Error('Informe descrição, valor positivo e data para o lançamento.')
+  if (transaction.kind === 'entrada' && (transaction.projectId !== input.projectId || input.kind !== 'entrada')) {
+    state.projectInstallments.forEach(item => { item.receivedTransactionIds = item.receivedTransactionIds.filter(txId => txId !== id) })
+  }
   Object.assign(transaction, { ...input, description: input.description.trim() })
   return saved(transaction)
 }
@@ -213,6 +217,53 @@ export function removeProjectMaterial(id: string, projectId: string): void {
   persistNow()
 }
 
+function checkInstallment(input: InstallmentInput, currentId?: string): void {
+  if (!state.projects.some(project => project.id === input.projectId)) throw new Error('O projeto não foi encontrado.')
+  const error = validateInstallment(input)
+  if (error) throw new Error(error)
+  for (const txId of input.receivedTransactionIds) {
+    const tx = state.transactions.find(item => item.id === txId)
+    if (!tx || tx.kind !== 'entrada' || tx.projectId !== input.projectId) throw new Error('Recebimento inválido ou pertencente a outro projeto.')
+    if (state.projectInstallments.some(item => item.id !== currentId && item.receivedTransactionIds.includes(txId))) {
+      throw new Error('Este recebimento já está vinculado a outra parcela.')
+    }
+  }
+}
+export function addProjectInstallment(input: InstallmentInput): ProjectInstallment {
+  checkInstallment(input)
+  const item: ProjectInstallment = { ...input, title: input.title.trim(),
+    receivedTransactionIds: [...input.receivedTransactionIds], id: uid(), createdAt: new Date().toISOString() }
+  state.projectInstallments.push(item)
+  return saved(item)
+}
+export function updateProjectInstallment(id: string, input: InstallmentInput): ProjectInstallment {
+  const item = state.projectInstallments.find(row => row.id === id && row.projectId === input.projectId)
+  if (!item) throw new Error('A parcela não foi encontrada neste projeto.')
+  checkInstallment(input, id)
+  Object.assign(item, { title: input.title.trim(), amount: input.amount, dueDate: input.dueDate,
+    receivedTransactionIds: [...input.receivedTransactionIds] })
+  return saved(item)
+}
+export function removeProjectInstallment(id: string, projectId: string): void {
+  const index = state.projectInstallments.findIndex(item => item.id === id && item.projectId === projectId)
+  if (index < 0) throw new Error('A parcela não foi encontrada neste projeto.')
+  state.projectInstallments.splice(index, 1)
+  persistNow()
+}
+export function saveProjectDelivery(input: DeliveryInput): ProjectDelivery {
+  if (!state.projects.some(project => project.id === input.projectId)) throw new Error('O projeto não foi encontrado.')
+  const error = validateDelivery(input)
+  if (error) throw new Error(error)
+  const previous = state.projectDeliveries.find(item => item.projectId === input.projectId)
+  if (previous) Object.assign(previous, input, { notes: input.notes.trim() })
+  else state.projectDeliveries.push({ ...input, notes: input.notes.trim() })
+  const project = state.projects.find(item => item.id === input.projectId)!
+  // A entrega só é concluída depois da confirmação explícita das datas pela usuária.
+  if (input.deliveredAt) project.status = 'entregue'
+  else if (input.reviewSentAt && project.status === 'andamento') project.status = 'revisao'
+  return saved(previous ?? state.projectDeliveries.find(item => item.projectId === input.projectId)!)
+}
+
 export function addPublication(input: Omit<Publication, 'id'>) { state.publications.push({ ...input, id: uid() }); persistNow() }
 export function addBriefingQuestion(input: Omit<BriefingQuestion, 'id'>) { state.legacyBriefing.push({ ...input, id: uid() }); persistNow() }
 
@@ -228,6 +279,10 @@ export function removeItem(key: CollectionKey, id: string): void {
     state.transactions.forEach(transaction => { if (transaction.projectId === id) transaction.projectId = null })
     state.projectBriefings = state.projectBriefings.filter(briefing => briefing.projectId !== id)
     state.projectMaterials = state.projectMaterials.filter(material => material.projectId !== id)
+    state.projectInstallments = state.projectInstallments.filter(item => item.projectId !== id)
+    state.projectDeliveries = state.projectDeliveries.filter(item => item.projectId !== id)
+  } else if (key === 'transactions') {
+    state.projectInstallments.forEach(item => { item.receivedTransactionIds = item.receivedTransactionIds.filter(txId => txId !== id) })
   } else if (key === 'leads') {
     state.projects.forEach(project => { if (project.sourceLeadId === id) project.sourceLeadId = null })
   } else if (key === 'services') {
