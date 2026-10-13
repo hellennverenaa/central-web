@@ -6,6 +6,8 @@ import { brl, todayLocal } from '../lib/format'
 import { initialConversionPrice, serviceSuggestion } from '../lib/pricing'
 import type { LeadStage, ProjectStatus } from '../lib/types'
 
+const props = defineProps<{ initialLeadId?: string | null }>()
+const originalLead = props.initialLeadId ? state.leads.find(item => item.id === props.initialLeadId) ?? null : null
 const emit = defineEmits<{
   close: []
   openLead: [id: string]
@@ -15,16 +17,18 @@ const emit = defineEmits<{
 
 type Decision = 'conversa' | 'proposta' | 'fechado'
 const stages = ['Cliente', 'Serviço', 'Proposta', 'Decisão'] as const
-const step = ref(1)
+const step = ref(originalLead ? 2 : 1)
 const busy = ref(false)
 const error = ref('')
-const savedLeadId = ref<string | null>(null)
-const decision = ref<Decision>('conversa')
+const savedLeadId = ref<string | null>(originalLead?.id ?? null)
+const decision = ref<Decision>(originalLead?.stage === 'proposta' ? 'proposta' : 'conversa')
 const projectNameEdited = ref(false)
 const priceEdited = ref(false)
 const form = reactive({
-  name: '', contact: '', notes: '', serviceId: '', customService: '',
-  estimate: 0, agreedPrice: 0, projectName: '', deadline: todayLocal(),
+  name: originalLead?.name ?? '', contact: originalLead?.contact ?? '', notes: originalLead?.notes ?? '',
+  serviceId: originalLead?.serviceId || (originalLead && originalLead.service !== 'A definir' ? 'custom' : ''),
+  customService: originalLead && !originalLead.serviceId && originalLead.service !== 'A definir' ? originalLead.service : '',
+  estimate: originalLead?.value ?? 0, agreedPrice: 0, projectName: '', deadline: todayLocal(),
   status: 'planejado' as ProjectStatus, briefingTemplateId: '',
 })
 
@@ -35,7 +39,7 @@ const suggestedPrice = computed(() => initialConversionPrice(Number(form.estimat
 const suggestedBriefing = computed(() => state.briefingTemplates.find(template => template.id === (service.value?.briefingTemplateId || state.briefingTemplates[0]?.id)) ?? null)
 const chosenBriefing = computed(() => state.briefingTemplates.find(template => template.id === form.briefingTemplateId) ?? suggestedBriefing.value)
 const initialTasks = computed(() => service.value?.taskTemplates ?? ['Confirmar escopo e materiais com o cliente', 'Preparar primeira versão', 'Revisar ajustes e combinar a entrega'])
-const possibleDuplicate = computed(() => state.leads.find(item => item.name.trim().toLocaleLowerCase('pt-BR') === form.name.trim().toLocaleLowerCase('pt-BR')) ?? null)
+const possibleDuplicate = computed(() => state.leads.find(item => item.id !== savedLeadId.value && item.name.trim().toLocaleLowerCase('pt-BR') === form.name.trim().toLocaleLowerCase('pt-BR')) ?? null)
 
 watch([() => form.name, serviceName], () => {
   if (!projectNameEdited.value) form.projectName = serviceName.value + ' — ' + form.name.trim()
@@ -65,7 +69,7 @@ function previousStep() { error.value = ''; step.value = Math.max(1, step.value 
 function selectCatalogPrice() { if (catalogPrice.value !== null) { form.agreedPrice = catalogPrice.value; priceEdited.value = true } }
 
 function close() {
-  if (savedLeadId.value || (!form.name.trim() && !form.contact.trim() && !form.notes.trim() && !form.customService.trim())) {
+  if (savedLeadId.value && !originalLead || (!form.name.trim() && !form.contact.trim() && !form.notes.trim() && !form.customService.trim())) {
     emit('close')
     return
   }
@@ -132,7 +136,7 @@ function finish(saveOnly = false) {
     <div class="modal-backdrop attendance-wizard-backdrop" @click.self="close">
       <div class="modal modal-wide attendance-wizard" role="dialog" aria-modal="true" aria-labelledby="wizard-title" aria-describedby="wizard-description">
         <div class="modal-head">
-          <div><p class="section-kicker">ATENDIMENTO GUIADO</p><h2 id="wizard-title">Novo atendimento</h2><p id="wizard-description" class="attendance-wizard-intro">Registre o que já sabe. Você pode deixar informações para depois.</p></div>
+          <div><p class="section-kicker">ATENDIMENTO GUIADO</p><h2 id="wizard-title">{{ originalLead ? 'Retomar atendimento' : 'Novo atendimento' }}</h2><p id="wizard-description" class="attendance-wizard-intro">{{ originalLead ? 'Revise o que já foi cadastrado e continue de onde precisar.' : 'Registre o que já sabe. Você pode deixar informações para depois.' }}</p></div>
           <button class="icon-button" type="button" aria-label="Fechar assistente" @click="close"><X :size="19"/></button>
         </div>
 
