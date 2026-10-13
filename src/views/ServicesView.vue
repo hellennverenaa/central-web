@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { nextTick, reactive, ref, watch } from 'vue'
-import { Calculator, ClipboardList, Info, Pencil, Plus, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, Calculator, ClipboardList, Info, Pencil, Plus, Trash2 } from 'lucide-vue-next'
 import { state, addService, persistenceError, removeItem, updateService } from '../lib/store'
 import { brl } from '../lib/format'
 import { serviceFloor, serviceSuggestion } from '../lib/pricing'
 import type { Service } from '../lib/types'
 
-const props = defineProps<{ focusServiceId?: string | null }>()
+const props = defineProps<{ focusServiceId?: string | null; originLabel?: string }>()
+const emit = defineEmits<{ back: [] }>()
 const showForm = ref(false)
 const editingId = ref<string | null>(null)
 const error = ref('')
@@ -73,10 +74,12 @@ watch(() => props.focusServiceId, focusService, { immediate: true })
 <template>
   <div class="view-enter">
     <div class="page-intro"><div><p class="eyebrow"><span class="eyebrow-line"></span> BIBLIOTECA DE MODELOS</p><h1>Serviços e preços</h1><p class="page-subtitle">Reutilize escopo, referência de preço, tarefas iniciais e questionário ao cadastrar uma oportunidade.</p></div><button class="btn btn-dark" @click="create"><Plus :size="17"/> Novo modelo</button></div>
+    <p v-if="props.originLabel" class="service-return"><button type="button" class="back-link" @click="emit('back')"><ArrowLeft :size="15"/> {{ props.originLabel }}</button><span>Você está consultando um modelo reutilizável, não um projeto contratado.</span></p>
     <p v-if="feedback" class="inline-notice" role="status">{{ feedback }}</p>
-    <div class="notice-box subtle-notice"><Info :size="22"/><div><b>Referências ilustrativas.</b><p>Piso = horas × valor da hora × (1 + reserva) + custos extras. A referência ajuda a montar a proposta; preço contratado e recebimentos continuam separados.</p></div></div>
+    <div class="notice-box subtle-notice"><Info :size="22"/><div><b>Biblioteca de modelos reutilizáveis.</b><p>Editar um modelo altera suas próximas utilizações, mas não substitui tarefas, respostas ou valores já definidos em projetos existentes. Piso = horas × valor da hora × (1 + reserva) + custos extras. A referência ajuda a montar a proposta; preço contratado e recebimentos continuam separados.</p></div></div>
     <div v-if="state.services.length" class="service-grid">
-      <article v-for="service in state.services" :id="`service-${service.id}`" :key="service.id" class="surface service-card">
+      <article v-for="service in state.services" :id="`service-${service.id}`" :key="service.id" class="surface service-card" :class="{ 'service-model-focused': focusServiceId === service.id }">
+        <p v-if="focusServiceId === service.id" class="service-focus-caption">MODELO DO SERVIÇO CONSULTADO</p>
         <header><div><p class="section-kicker">{{ service.availability }}</p><h2>{{ service.name }}</h2><p class="item-counter">{{ relatedCount(service.id) }} oportunidade(s) e projeto(s) vinculados</p></div><div class="row-actions"><button class="icon-button" :aria-label="`Editar ${service.name}`" @click="edit(service)"><Pencil :size="16"/></button><button class="icon-button danger" :aria-label="`Excluir ${service.name}`" @click="drop(service)"><Trash2 :size="16"/></button></div></header>
         <div class="price-result"><span>Referência arredondada</span><strong>{{ brl(serviceSuggestion(service)) }}</strong><small>Piso calculado: {{ brl(serviceFloor(service)) }}</small></div>
         <div class="service-facts"><span><b>{{ service.hours }}</b> horas</span><span><b>{{ brl(service.hourlyRate) }}</b> por hora</span><span><b>{{ brl(service.extras) }}</b> custos extras</span><span><b>{{ Math.round(service.contingency * 100) }}%</b> de reserva</span></div>
