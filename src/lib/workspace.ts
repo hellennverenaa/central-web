@@ -234,7 +234,7 @@ function isValidWorkspaceV7(x: unknown): x is Workspace {
   if (!isValidWorkspaceCore(x) || x.schemaVersion !== 7 ||
       !isValidWorkspaceV6({ ...x, schemaVersion: 6 })) return false
   if (!object(x)) return false
-  const proposals = x.leadProposals
+  const proposals = (x as unknown as Record<string, unknown>).leadProposals
   if (!isArray(proposals, row => {
     if (typeof row.id !== 'string' || !row.id.trim() || typeof row.leadId !== 'string' || !row.leadId.trim() ||
         !Array.isArray(row.revisions) || row.revisions.length < 1 || row.revisions.length > 50) return false
