@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { addProject, addTask, addTransaction, clearAll, state, updateProjectBriefing } from '../src/lib/store.ts'
+import { addProject, addProjectMaterial, addTask, addTransaction, clearAll, removeItem, removeProjectMaterial, state, updateProjectBriefing, updateProjectMaterial } from '../src/lib/store.ts'
 import { readWorkspace, writeWorkspace, WORKSPACE_STORAGE_KEY, type StoragePort } from '../src/lib/workspace.ts'
 
 class MemoryStorage implements StoragePort {
@@ -29,7 +29,7 @@ test('projeto copia tarefas e questionário do serviço e persiste respostas e l
   const storage = new MemoryStorage()
   writeWorkspace(state, storage)
   const reopened = readWorkspace(storage).workspace
-  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 4)
+  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 5)
   assert.equal(reopened.projectBriefings.find(item => item.projectId === project.id)?.answers['business-name'], 'Cliente de exemplo')
   assert.equal(reopened.tasks.filter(task => task.projectId === project.id).length, service.taskTemplates.length + 1)
   assert.equal(reopened.tasks.find(task => task.title === 'Revisar calendário')?.projectId, null)
@@ -42,4 +42,27 @@ test('respostas inválidas ou pertencentes a outro projeto não são salvas', ()
   const briefing = state.projectBriefings.find(item => item.id === project.briefingId)!
   assert.throws(() => updateProjectBriefing(briefing.id, { 'missing-question': 'valor' }), /não pertence/)
   assert.throws(() => updateProjectBriefing(briefing.id, { 'event-type': ['Casamento'] }), /único valor/)
+})
+
+test('materiais pertencem ao projeto, são editáveis, persistem e são excluídos com ele', () => {
+  clearAll()
+  const project = addProject({ name: 'Site demonstrativo', client: 'Cliente fictício', serviceId: null, status: 'planejado', deadline: '2026-10-15', value: 200 })
+  const input = { projectId: project.id, name: '  Protótipo no Figma  ', category: 'design' as const, url: 'https://www.figma.com', notes: '  Revisar  ' }
+  assert.throws(() => addProjectMaterial({ ...input, url: 'javascript:alert(1)' }), /http/)
+  assert.throws(() => addProjectMaterial({ ...input, projectId: 'projeto-inexistente' }), /não foi encontrado/)
+  const item = addProjectMaterial(input)
+  assert.equal(item.name, 'Protótipo no Figma')
+  assert.equal(item.notes, 'Revisar')
+  assert.equal(item.url, 'https://www.figma.com/')
+  assert.throws(() => updateProjectMaterial(item.id, { ...input, projectId: 'projeto-inexistente' }), /não foi encontrado/)
+  updateProjectMaterial(item.id, { ...input, name: 'Link de entrega', category: 'entrega', url: 'https://example.org/entrega', notes: '' })
+  assert.equal(state.projectMaterials[0].category, 'entrega')
+  const storage = new MemoryStorage()
+  writeWorkspace(state, storage)
+  assert.equal(readWorkspace(storage).workspace.projectMaterials[0].name, 'Link de entrega')
+  removeProjectMaterial(item.id, project.id)
+  assert.equal(state.projectMaterials.length, 0)
+  addProjectMaterial(input)
+  removeItem('projects', project.id)
+  assert.equal(state.projectMaterials.length, 0)
 })
