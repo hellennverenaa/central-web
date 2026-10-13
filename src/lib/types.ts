@@ -51,6 +51,26 @@ export interface ProjectMaterial {
   createdAt: string
 }
 
+/** Uma cobrança combinada NÃO é receita realizada. Recebimentos são Transaction separadas. */
+export interface ProjectInstallment {
+  id: string
+  projectId: string
+  title: string
+  amount: number
+  dueDate: string
+  receivedTransactionIds: string[]
+  createdAt: string
+}
+
+/** Datas explícitas de acompanhamento de revisão e entrega, sem dados inventados. */
+export interface ProjectDelivery {
+  projectId: string
+  reviewSentAt: string
+  approvedAt: string
+  deliveredAt: string
+  notes: string
+}
+
 export interface Task {
   id: string
   title: string
@@ -90,7 +110,7 @@ export interface ProjectBriefing {
 }
 
 export interface Workspace {
-  schemaVersion: 5
+  schemaVersion: 6
   leads: Lead[]
   projects: Project[]
   transactions: Transaction[]
@@ -101,5 +121,7 @@ export interface Workspace {
   briefingTemplates: BriefingTemplate[]
   projectBriefings: ProjectBriefing[]
   projectMaterials: ProjectMaterial[]
+  projectInstallments: ProjectInstallment[]
+  projectDeliveries: ProjectDelivery[]
   legacyBriefing: BriefingQuestion[]
 }
