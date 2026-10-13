@@ -29,6 +29,18 @@ const briefingDirty = ref(false)
 const briefingSavedAt = ref('')
 const briefingProgressValue = computed(() => projectBriefing.value ? briefingProgress({ ...projectBriefing.value, answers: { ...briefingAnswers } }) : { complete: 0, total: 0 })
 const missingBriefingAnswers = computed(() => projectBriefing.value ? unansweredRequiredQuestionIds({ ...projectBriefing.value, answers: { ...briefingAnswers } }).length : 0)
+const briefingCompleteAndSaved = computed(() => Boolean(projectBriefing.value) && !briefingDirty.value && missingBriefingAnswers.value === 0)
+const isLastBriefingSection = computed(() => {
+  const sections = projectBriefing.value?.sections ?? []
+  return sections.length > 0 && secaoBriefingAtiva.value === sections[sections.length - 1]?.id
+})
+const briefingSavedTime = computed(() => {
+  if (briefingSavedAt.value) return briefingSavedAt.value
+  const updatedAt = projectBriefing.value?.updatedAt
+  if (!updatedAt) return ''
+  const date = new Date(updatedAt)
+  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(date)
+})
 const openProjectForm = ref(false)
 const openTaskForm = ref(false)
 const openTransactionForm = ref(false)
@@ -89,9 +101,19 @@ function toggleAnswer(questionId: string, option: string, checked: boolean) {
   briefingDirty.value = true
   briefingFeedback.value = ''
 }
+function nextBriefingSection() {
+  const sections = projectBriefing.value?.sections ?? []
+  const currentIndex = sections.findIndex(section => section.id === secaoBriefingAtiva.value)
+  if (currentIndex >= 0 && currentIndex < sections.length - 1) secaoBriefingAtiva.value = sections[currentIndex + 1]!.id
+}
+
 function saveBriefing(continueToNext = false) {
   briefingError.value = ''
   if (!projectBriefing.value) { briefingError.value = 'Este projeto não tem um questionário vinculado.'; return }
+  if (!briefingDirty.value) {
+    if (continueToNext) nextBriefingSection()
+    return
+  }
   try {
     updateProjectBriefing(projectBriefing.value.id, { ...briefingAnswers })
     if (persistenceError.value) {
@@ -102,11 +124,7 @@ function saveBriefing(continueToNext = false) {
     briefingDirty.value = false
     briefingSavedAt.value = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date())
     briefingFeedback.value = `Respostas salvas com sucesso às ${briefingSavedAt.value}.` + (missingBriefingAnswers.value ? ` Ainda faltam ${missingBriefingAnswers.value} campo(s) obrigatório(s).` : '')
-    if (continueToNext) {
-      const sections = projectBriefing.value.sections
-      const currentIndex = sections.findIndex(section => section.id === secaoBriefingAtiva.value)
-      if (currentIndex >= 0 && currentIndex < sections.length - 1) secaoBriefingAtiva.value = sections[currentIndex + 1]!.id
-    }
+    if (continueToNext) nextBriefingSection()
   } catch (cause) { briefingError.value = cause instanceof Error ? cause.message : 'Não foi possível salvar as respostas.' }
 }
 
@@ -246,7 +264,7 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
       </div>
     </section>
 
-    <section v-if="abaAtiva === 'briefing' && projectBriefing" class="surface project-briefing"><header class="project-briefing-header"><div><p class="section-kicker">BRIEFING DESTE PROJETO</p><h2>{{ projectBriefing.templateName }}</h2><p>{{ briefingProgressValue.complete }} de {{ briefingProgressValue.total }} campos obrigatórios respondidos</p></div><span class="brief-tag">{{ projectBriefing.sections.length }} seções</span></header>
+    <section v-if="abaAtiva === 'briefing' && projectBriefing" class="surface project-briefing"><header class="project-briefing-header"><div><p class="section-kicker">BRIEFING DESTE PROJETO</p><h2>{{ projectBriefing.templateName }}</h2><p>{{ briefingProgressValue.complete }} de {{ briefingProgressValue.total }} campos obrigatórios respondidos</p></div><span class="brief-tag" :class="{ 'brief-tag-complete': briefingCompleteAndSaved }">{{ briefingCompleteAndSaved ? '✓ Concluído' : `${projectBriefing.sections.length} seções` }}</span></header>
       <nav class="briefing-sections-nav" aria-label="Seções do questionário">
         <button v-for="(secao, indice) in projectBriefing.sections" :key="secao.id" class="briefing-section-button" :class="{ ativo: secaoBriefingAtiva === secao.id }" :aria-current="secaoBriefingAtiva === secao.id ? 'step' : undefined" @click="secaoBriefingAtiva = secao.id">{{ indice + 1 }}. {{ secao.title }}</button>
       </nav>
@@ -258,7 +276,15 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
           <input v-else :id="`answer-${question.id}`" :type="question.type === 'short-text' ? 'text' : question.type" :value="scalarAnswer(question.id)" @input="setScalarAnswer(question.id, $event)"/>
           <small v-if="question.example" class="briefing-answer-example">{{ question.example }}</small>
         </fieldset></template>
-      </div></section><p v-if="briefingError" class="form-error" role="alert">{{ briefingError }}</p><p v-if="briefingFeedback" class="inline-notice" role="status">{{ briefingFeedback }}</p><div class="project-briefing-actions"><small>{{ briefingDirty ? 'Alterações ainda não salvas. ' : briefingSavedAt ? `Salvo às ${briefingSavedAt}. ` : '' }}Rascunhos podem ser salvos antes de preencher todos os campos obrigatórios.</small><div class="row-actions"><button class="btn btn-outline" type="button" @click="saveBriefing(true)">Salvar e continuar</button><button class="btn btn-dark" type="submit">Salvar respostas</button></div></div></form>
+      </div></section><p v-if="briefingError" class="form-error" role="alert">{{ briefingError }}</p><p v-if="briefingFeedback" class="inline-notice" role="status">{{ briefingFeedback }}</p><div class="project-briefing-actions">
+        <div v-if="briefingCompleteAndSaved" class="briefing-save-state briefing-save-complete" role="status"><CheckCircle2 :size="20"/><span><b>Briefing completo e salvo.</b><small>{{ briefingSavedTime ? `Último salvamento às ${briefingSavedTime}. ` : '' }}Se precisar corrigir algo, basta editar uma resposta.</small></span></div>
+        <div v-else-if="briefingDirty" class="briefing-save-state" role="status"><span><b>Alterações ainda não salvas.</b><small>Salve para manter as respostas. É possível salvar mesmo com perguntas pendentes.</small></span></div>
+        <div v-else class="briefing-save-state"><span><b>{{ missingBriefingAnswers }} campo(s) obrigatório(s) pendente(s).</b><small>{{ briefingSavedTime ? `Último salvamento às ${briefingSavedTime}. ` : '' }}Preencha no seu ritmo; os dados já salvos permanecem neste projeto.</small></span></div>
+        <div class="row-actions">
+          <button v-if="!isLastBriefingSection" class="btn btn-outline" type="button" @click="saveBriefing(true)">{{ briefingDirty ? 'Salvar e continuar' : 'Próxima seção' }}</button>
+          <button v-if="briefingDirty" class="btn btn-dark" type="submit">Salvar alterações</button>
+        </div>
+      </div></form>
     </section>
     <div v-else-if="abaAtiva === 'briefing'" class="surface empty compact"><ClipboardList :size="22"/><b>Briefing não encontrado</b><p>Confira o vínculo do projeto ou escolha um modelo em Serviços.</p></div>
 
