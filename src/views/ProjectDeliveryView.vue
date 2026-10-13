@@ -58,7 +58,7 @@ watch(() => props.projectId, () => { showForm.value = false; error.value = ''; f
         <div class="field"><label for="delivery-review">Data do envio para revisão</label><input id="delivery-review" v-model="form.reviewSentAt" type="date"/></div>
         <div class="field"><label for="delivery-approved">Data da aprovação pelo cliente</label><input id="delivery-approved" v-model="form.approvedAt" type="date"/></div>
         <div class="field"><label for="delivery-done">Data da entrega final</label><input id="delivery-done" v-model="form.deliveredAt" type="date"/></div>
-        <div class="field"><label for="delivery-notes">Observações ou revisões acordadas</label><textarea id="delivery-notes" v-model="form.notes" rows="4" maxlength="1000"/></div>
+        <div class="field"><label for="delivery-notes">Observações ou revisões acordadas</label><textarea id="delivery-notes" v-model="form.notes" rows="4" maxlength="1000" placeholder="Ex.: Cliente aprovou o layout e pediu a troca de uma foto."/>></div>
         <p v-if="error" class="form-error" role="alert">{{ error }}</p>
         <div class="modal-actions"><button type="button" class="btn btn-outline" @click="showForm = false">Cancelar</button><button type="submit" class="btn btn-dark">Salvar etapas</button></div>
       </form>
