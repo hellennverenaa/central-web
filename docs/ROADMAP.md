@@ -12,6 +12,8 @@
 - [x] Oportunidades, serviços, projetos, tarefas e transações conectados por IDs no frontend
 - [x] Conversão de oportunidade com preço combinado separado da estimativa e do caixa
 - [x] Detalhe do projeto com edição, tarefas, recebimentos e despesas
+- [x] Etapa 2: biblioteca de serviços contextualizada e retorno à oportunidade/projeto de origem
+- [x] Etapa 2: links categorizados de materiais e ferramentas dentro do projeto; formato local v5 com migração de v4
 - [x] Testes de domínio, conversão, persistência e migração
 - [x] GitHub Actions para checagem de tipos e build
 - [x] Executar testes, typecheck e build no workspace local
