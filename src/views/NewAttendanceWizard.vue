@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardList, FolderKanban, Plus, X } from 'lucide-vue-next'
 import { addLead, convertLeadToProject, persistenceError, state, updateLead } from '../lib/store'
+import { confirmAction } from '../lib/confirmation'
 import { brl, todayLocal } from '../lib/format'
 import { initialConversionPrice, serviceSuggestion } from '../lib/pricing'
 import { acceptedPrice } from '../lib/proposals'
@@ -78,12 +79,17 @@ const hasUnsavedChanges = computed(() => {
     form.serviceId || form.customService.trim() || Number(form.estimate) > 0)
 })
 
-function close() {
-  if (!hasUnsavedChanges.value || confirm('Descartar as informações deste atendimento que ainda não foram salvas?')) emit('close')
+async function close() {
+  if (hasUnsavedChanges.value && !(await confirmAction({
+    title: 'Descartar atendimento em andamento?',
+    message: 'Você ainda tem informações não salvas. Ao sair, essas alterações serão perdidas.',
+    confirmLabel: 'Descartar atendimento', tone: 'danger',
+  }))) return
+  emit('close')
 }
 
-function newProjectDirectly() {
-  if (hasUnsavedChanges.value && !confirm('Abrir o cadastro direto de projeto? As informações deste assistente que não foram salvas serão descartadas.')) return
+async function newProjectDirectly() {
+  if (hasUnsavedChanges.value && !(await confirmAction({ title: 'Ir para o cadastro de projetos?', message: 'As informações não salvas deste atendimento serão descartadas.', confirmLabel: 'Ir para projetos', tone: 'danger' }))) return
   emit('createDirectProject')
 }
 
