@@ -28,20 +28,20 @@ npm run build
 | --- | --- |
 | Visão geral | Indicadores de pipeline, projetos, saldo, andamento do plano e publicações |
 | Plano de lançamento | 17 ações de 30 dias com semana, prioridade, horas e status editável |
-| Serviços e preços | 7 serviços exemplificativos; simulação dinâmica de piso e arredondamento |
+| Serviços e preços | Biblioteca de modelos reutilizáveis, com simulação ilustrativa de piso e preço sugerido |
 | Oportunidades | CRM com vínculo a serviço e conversão em projeto |
-| Projetos | Lista e detalhes com oportunidade, serviço, tarefas e caixa vinculados |
+| Projetos | Lista e detalhes com oportunidade, serviço, briefing, tarefas, materiais/links e caixa vinculados |
 | Financeiro | Entradas e saídas gerais ou associadas a um projeto |
 | Publicações | 7 ideias para Instagram e WhatsApp; calendário, legenda e resultado |
 | Briefing | 13 perguntas de atendimento com fases, justificativa e próximo passo; copiar perguntas |
 | Tarefas | Checklist pessoal e tarefas associadas a projetos |
-| Dados e backup | Exportação/importação JSON v3, migração v1/v2, restaurar modelos, dados fictícios |
+| Dados e backup | Exportação/importação JSON v5, migração v1/v2/v3/v4, restaurar modelos, dados fictícios |
 
 Os modelos de plano, serviço, publicação e briefing **foram extraídos da planilha original**, sem incluir nomes/contatos de clientes reais. Números no simulador são somente exemplos, **não são pesquisa de mercado ou proposta comercial definitiva**.
 
 ## Persistência / atualização do workspace
 
-O schema atual é `central-web:workspace:v3`. Na primeira abertura, dados v1 ou v2 são migrados para a nova chave, mantendo os registros antigos e acrescentando vínculos vazios quando eles não existiam. As chaves anteriores ficam preservadas. Backups JSON v1, v2 e v3 são aceitos; backups antigos vinculam uma oportunidade a um serviço somente quando o nome corresponde a um único item do catálogo.
+O schema atual é `central-web:workspace:v5`. Na primeira abertura, dados v1, v2, v3 ou v4 são migrados para a nova chave, mantendo os registros antigos. As chaves anteriores ficam preservadas. Backups JSON v1, v2, v3, v4 e v5 são aceitos; backups antigos vinculam uma oportunidade a um serviço somente quando o nome corresponde a um único item do catálogo.
 
 Oportunidades guardam o ID do serviço e do projeto convertido. Projetos guardam o serviço e a oportunidade de origem; tarefas e lançamentos guardam o ID do projeto. Ao excluir uma entidade relacionada, os vínculos restantes são limpos e tarefas/lançamentos ficam preservados. A estimativa comercial, o preço combinado e o dinheiro recebido continuam separados.
 
@@ -78,5 +78,8 @@ Consulte `AGENTS.md`, `docs/PRODUTO.md`, `docs/ROADMAP.md`, `docs/ARQUITETURA.md
 ## Fluxo integrado
 
 - Oportunidades podem ser relacionadas a um serviço do catálogo, editadas e convertidas em projeto com preço combinado confirmado separadamente.
-- O detalhe do projeto reúne serviço, oportunidade de origem, tarefas, recebimentos, despesas e saldo do projeto.
+- O detalhe do projeto reúne serviço, oportunidade de origem, tarefas, recebimentos, despesas, materiais/ferramentas e saldo do projeto.
+- Na aba **Materiais e ferramentas**, é possível cadastrar, editar, abrir e excluir links HTTP/HTTPS categorizados. A Central não hospeda arquivos nessa versão.
+- O catálogo é uma biblioteca de modelos, com retorno ao atendimento/projeto de origem quando aberto por seus vínculos.
+- A migração v4 → v5 inicializa os materiais vazios sem alterar os clientes, projetos ou briefings existentes.
 - Testes de domínio e migração: `npm test`. Checagem de tipos: `npm run typecheck`. Build: `npm run build`.
