@@ -279,3 +279,12 @@ tr[id^="lead-"]:target,article[id^="service-"]:target{outline:2px solid #aa99ea;
 @media(max-width:950px){.today-overview{gap:10px}.today-overview-card{padding:15px}.dashboard-head-actions .btn{padding:10px 12px}}
 @media(max-width:720px){.today-overview{grid-template-columns:1fr}.today-overview-card{padding:14px 17px}.today-action-card{align-items:flex-start;flex-wrap:wrap;padding:17px}.today-action-link{margin-left:61px}.today-list-header{align-items:flex-start;flex-direction:column}.dashboard-head-actions{justify-content:flex-start}}
 @media(max-width:460px){.today-action-icon{flex-basis:37px;height:37px}.today-action-link{width:100%;margin-left:0}.today-action-card{gap:11px}.dashboard-head-actions{width:100%}.dashboard-head-actions .btn{flex:1;min-width:0;white-space:normal}}
+
+/* Estado de salvamento do briefing: concluído, pendente ou alterado. */
+.project-briefing-header .brief-tag-complete{color:#276747;background:#eaf7ef}
+.briefing-save-state{display:flex;align-items:flex-start;gap:9px;min-width:0;color:#605a6e}
+.briefing-save-state b{display:block;font-size:12px;margin-bottom:4px;color:#4c455d}
+.briefing-save-state small{display:block;font-size:11px;line-height:1.6;color:#858094}
+.briefing-save-complete svg{flex:0 0 20px;color:#31865b}
+.briefing-save-complete b{color:#276747}
+.project-briefing-actions .row-actions:empty{display:none}
