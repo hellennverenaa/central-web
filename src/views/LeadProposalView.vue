@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { ArrowLeft, CheckCircle2, ClipboardCopy, FileText, Pencil, Plus, X } from 'lucide-vue-next'
+import { CheckCircle2, ClipboardCopy, FileText, Pencil, Plus, X } from 'lucide-vue-next'
 import { markLeadProposal, persistenceError, saveLeadProposal, state } from '../lib/store'
 import { latestRevision, proposalFromLead, proposalStatusLabel, proposalText, type ProposalInput } from '../lib/proposals'
 import { brl } from '../lib/format'
