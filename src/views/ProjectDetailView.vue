@@ -21,6 +21,9 @@ const projectBriefing = computed(() => state.projectBriefings.find(item => item.
 const briefingAnswers = reactive<Record<string, BriefingAnswer>>({})
 const briefingError = ref('')
 const briefingFeedback = ref('')
+const briefingQuestions = computed(() => projectBriefing.value?.sections.flatMap(section => section.questions) ?? [])
+const briefingDirty = ref(false)
+const briefingSavedAt = ref('')
 const briefingProgressValue = computed(() => projectBriefing.value ? briefingProgress({ ...projectBriefing.value, answers: { ...briefingAnswers } }) : { complete: 0, total: 0 })
 const missingBriefingAnswers = computed(() => projectBriefing.value ? unansweredRequiredQuestionIds({ ...projectBriefing.value, answers: { ...briefingAnswers } }).length : 0)
 const openProjectForm = ref(false)
@@ -38,21 +41,26 @@ const projectForm = reactive({ name: '', client: '', serviceId: '', status: 'pla
 const taskForm = reactive({ title: '' })
 const transactionForm = reactive({ description: '', kind: 'entrada' as TransactionType, amount: 0, date: todayLocal() })
 
-watch(() => projectBriefing.value?.id, () => {
+watch(() => [props.projectId, projectBriefing.value?.id] as const, () => {
   for (const key of Object.keys(briefingAnswers)) delete briefingAnswers[key]
   if (projectBriefing.value) Object.assign(briefingAnswers, JSON.parse(JSON.stringify(projectBriefing.value.answers)) as Record<string, BriefingAnswer>)
   briefingError.value = ''
   briefingFeedback.value = ''
+  briefingDirty.value = false
+  briefingSavedAt.value = ''
+  abaAtiva.value = 'resumo'
   secaoBriefingAtiva.value = projectBriefing.value?.sections[0]?.id ?? ''
 }, { immediate: true })
 
-function visibleQuestion(question: BriefingQuestionDefinition) { return isQuestionVisible(question, briefingAnswers) }
+function visibleQuestion(question: BriefingQuestionDefinition) { return isQuestionVisible(question, briefingAnswers, briefingQuestions.value) }
 function scalarAnswer(questionId: string): string {
   const answer = briefingAnswers[questionId]
   return typeof answer === 'string' ? answer : ''
 }
 function setScalarAnswer(questionId: string, event: Event) {
   briefingAnswers[questionId] = (event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value
+  briefingDirty.value = true
+  briefingFeedback.value = ''
 }
 function selectedAnswers(questionId: string): string[] {
   const answer = briefingAnswers[questionId]
@@ -63,13 +71,27 @@ function toggleAnswer(questionId: string, option: string, checked: boolean) {
   if (checked) answers.add(option)
   else answers.delete(option)
   briefingAnswers[questionId] = [...answers]
+  briefingDirty.value = true
+  briefingFeedback.value = ''
 }
-function saveBriefing() {
+function saveBriefing(continueToNext = false) {
   briefingError.value = ''
   if (!projectBriefing.value) { briefingError.value = 'Este projeto não tem um questionário vinculado.'; return }
   try {
     updateProjectBriefing(projectBriefing.value.id, { ...briefingAnswers })
-    briefingFeedback.value = persistenceError.value || (missingBriefingAnswers.value ? 'Respostas salvas. Ainda há campos obrigatórios sem resposta.' : 'Respostas do briefing salvas neste projeto.')
+    if (persistenceError.value) {
+      briefingError.value = persistenceError.value
+      briefingFeedback.value = ''
+      return
+    }
+    briefingDirty.value = false
+    briefingSavedAt.value = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+    briefingFeedback.value = `Respostas salvas com sucesso às ${briefingSavedAt.value}.` + (missingBriefingAnswers.value ? ` Ainda faltam ${missingBriefingAnswers.value} campo(s) obrigatório(s).` : '')
+    if (continueToNext) {
+      const sections = projectBriefing.value.sections
+      const currentIndex = sections.findIndex(section => section.id === secaoBriefingAtiva.value)
+      if (currentIndex >= 0 && currentIndex < sections.length - 1) secaoBriefingAtiva.value = sections[currentIndex + 1]!.id
+    }
   } catch (cause) { briefingError.value = cause instanceof Error ? cause.message : 'Não foi possível salvar as respostas.' }
 }
 
@@ -186,7 +208,7 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
       <nav class="briefing-sections-nav" aria-label="Seções do questionário">
         <button v-for="(secao, indice) in projectBriefing.sections" :key="secao.id" class="briefing-section-button" :class="{ ativo: secaoBriefingAtiva === secao.id }" :aria-current="secaoBriefingAtiva === secao.id ? 'step' : undefined" @click="secaoBriefingAtiva = secao.id">{{ indice + 1 }}. {{ secao.title }}</button>
       </nav>
-      <form @submit.prevent="saveBriefing"><section v-for="section in projectBriefing.sections" v-show="secaoBriefingAtiva === section.id" :key="section.id" class="project-briefing-section"><div class="project-briefing-section-heading"><h3>{{ section.title }}</h3><p v-if="section.description">{{ section.description }}</p></div><div class="project-briefing-questions">
+      <form @submit.prevent="saveBriefing(false)"><section v-for="section in projectBriefing.sections" v-show="secaoBriefingAtiva === section.id" :key="section.id" class="project-briefing-section"><div class="project-briefing-section-heading"><h3>{{ section.title }}</h3><p v-if="section.description">{{ section.description }}</p></div><div class="project-briefing-questions">
         <template v-for="question in section.questions" :key="question.id"><fieldset v-if="visibleQuestion(question)" class="project-briefing-question"><legend>{{ question.label }} <span v-if="question.required" class="required-mark">Obrigatória</span></legend>
           <textarea v-if="question.type === 'long-text'" :id="`answer-${question.id}`" :value="scalarAnswer(question.id)" rows="3" @input="setScalarAnswer(question.id, $event)"/>
           <select v-else-if="question.type === 'single-choice' || question.type === 'yes-no'" :id="`answer-${question.id}`" :value="scalarAnswer(question.id)" @change="setScalarAnswer(question.id, $event)"><option value="">Selecione uma opção</option><option v-for="option in (question.type === 'yes-no' ? ['Sim', 'Não'] : question.options)" :key="option" :value="option">{{ option }}</option></select>
@@ -194,7 +216,7 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
           <input v-else :id="`answer-${question.id}`" :type="question.type === 'short-text' ? 'text' : question.type" :value="scalarAnswer(question.id)" @input="setScalarAnswer(question.id, $event)"/>
           <small v-if="question.example" class="briefing-answer-example">{{ question.example }}</small>
         </fieldset></template>
-      </div></section><p v-if="briefingError" class="form-error" role="alert">{{ briefingError }}</p><p v-if="briefingFeedback" class="inline-notice" role="status">{{ briefingFeedback }}</p><div class="project-briefing-actions"><small>Rascunhos podem ser salvos antes de preencher todos os campos obrigatórios.</small><button class="btn btn-dark" type="submit">Salvar respostas</button></div></form>
+      </div></section><p v-if="briefingError" class="form-error" role="alert">{{ briefingError }}</p><p v-if="briefingFeedback" class="inline-notice" role="status">{{ briefingFeedback }}</p><div class="project-briefing-actions"><small>{{ briefingDirty ? 'Alterações ainda não salvas. ' : briefingSavedAt ? `Salvo às ${briefingSavedAt}. ` : '' }}Rascunhos podem ser salvos antes de preencher todos os campos obrigatórios.</small><div class="row-actions"><button class="btn btn-outline" type="button" @click="saveBriefing(true)">Salvar e continuar</button><button class="btn btn-dark" type="submit">Salvar respostas</button></div></div></form>
     </section>
     <div v-else-if="abaAtiva === 'briefing'" class="surface empty compact"><ClipboardList :size="22"/><b>Briefing não encontrado</b><p>Confira o vínculo do projeto ou escolha um modelo em Serviços.</p></div>
 
