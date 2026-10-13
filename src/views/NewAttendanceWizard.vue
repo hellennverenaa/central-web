@@ -19,7 +19,6 @@ const step = ref(1)
 const busy = ref(false)
 const error = ref('')
 const savedLeadId = ref<string | null>(null)
-const createdProjectId = ref<string | null>(null)
 const decision = ref<Decision>('conversa')
 const projectNameEdited = ref(false)
 const priceEdited = ref(false)
@@ -120,7 +119,6 @@ function finish(saveOnly = false) {
       deadline: form.deadline, value: Number(form.agreedPrice),
       briefingTemplateId: chosenBriefing.value!.id,
     })
-    createdProjectId.value = project.id
     if (persistenceError.value) throw new Error(persistenceError.value)
     emit('openProject', project.id, 'Projeto criado com briefing e tarefas iniciais preparados.')
   } catch (cause) {
