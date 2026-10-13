@@ -9,7 +9,7 @@ Central particular para lançar e operar um microestúdio de convites digitais, 
 3. Preparar **Publicações** e acompanhar status/resultado (7 modelos).
 4. Copiar perguntas em **Briefing** para conversas de atendimento (13 modelos).
 5. Usar **Novo atendimento** para registrar cliente, escolher serviço ou deixar indefinido, revisar valor estimado e salvar oportunidade ou converter após confirmação. Retomar atendimentos pelo CRM.
-6. No detalhe de cada **Projeto**, acompanhar briefing, tarefas, materiais e ferramentas (links), recebimentos, despesas e saldo relacionado.
+6. No detalhe de cada **Projeto**, acompanhar briefing, tarefas, materiais, cobranças previstas, recebimentos reais, revisão/aprovação e entrega.
 7. Usar **Tarefas** para ações pessoais ou vinculadas; acompanhar os totais no **Financeiro**.
 8. Consultar **Hoje** para ver próximos passos calculados automaticamente (prazos, briefings incompletos, tarefas e oportunidades abertas), além dos indicadores na **Visão geral** e **Dados & backup**.
 
@@ -19,7 +19,10 @@ Central particular para lançar e operar um microestúdio de convites digitais, 
 - Valor de projeto não é automaticamente entrada no caixa.
 - A visão **Hoje** não cria registros: exibe apenas uma prioridade por projeto e as oportunidades/tarefas avulsas que exigem acompanhamento.
 - Prazos vencidos/para hoje/próximos 7 dias usam **somente** as datas cadastradas dos projetos. Tarefas sem prazo não recebem data inventada.
-- Valor contratado ainda não recebido gera sugestão de revisão do financeiro, **não** cobrança vencida, pois o protótipo ainda não possui parcelas nem vencimentos acordados.
+- Valor contratado ainda não recebido é diferente de pagamento vencido. Só parcelas explicitamente cadastradas com vencimento combinado geram alertas de vencimento na visão Hoje.
+- **Cobranças previstas:** registros de parcelas planejadas não criam receita. É possível associar manualmente um ou vários recebimentos reais a cada parcela (inclusive pagamentos parciais), sem contar uma entrada duas vezes.
+- **Revisão e entrega:** datas reais de envio para revisão, aprovação do cliente e entrega final são registradas manualmente na aba Entrega. Confirmar data de entrega coloca o projeto como Entregue; sem preencher uma data, nada é inventado.
+- Um projeto excluído também exclui seus registros previstos e marcos de entrega, mas mantém transações reais desvinculadas. Quando um recebimento é excluído ou desvinculado do projeto, seu vínculo com a parcela é removido.
 - Projetos convertidos preservam os IDs da oportunidade e do serviço; tarefas e lançamentos podem apontar para o projeto.
 - **Briefing:** ao salvar, a área mostra uma consulta de todas as respostas por seção, sem campos de formulário. Para alterar algo, use **Editar respostas** (ou **Continuar preenchimento** se houver perguntas obrigatórias pendentes). Após confirmar o salvamento, a consulta volta a aparecer. O estado é derivado das respostas persistidas; não há mudança de schema.
 - O assistente permite salvar o atendimento em qualquer etapa após informar o cliente; oportunidades retomadas são editadas, não duplicadas.
@@ -29,7 +32,7 @@ Central particular para lançar e operar um microestúdio de convites digitais, 
 - **Serviços e preços** é a biblioteca de modelos, não a página de um projeto; projetos existentes não herdam automaticamente alterações posteriores do modelo.
 - **Materiais e ferramentas** guarda links por projeto, com nome, categoria e notas. Links só podem usar HTTP/HTTPS; não existe upload de arquivos no protótipo.
 - Ao excluir um projeto, seus links e o briefing próprio são removidos, enquanto tarefas e lançamentos permanecem sem vínculo.
-- Backups v1 a v4 migram para o formato v5; a chave local v4 permanece preservada na migração.
+- Backups v1 a v5 migram para o formato v6; as chaves locais antigas permanecem preservadas na migração.
 - Ao excluir uma entidade relacionada, as referências são desassociadas; tarefas e lançamentos não são apagados junto com o projeto.
 - Simulador: `piso = (horas × valor_hora) × (1 + reserva) + custos_extras`; arredondamento para a próxima dezena.
 - Planejamento, serviços, publicações e briefing começam **com modelos editáveis**; as demais telas não contêm dados fictícios por padrão.
