@@ -13,6 +13,11 @@ Central particular para lançar e operar um microestúdio de convites digitais, 
 7. Usar **Tarefas** para ações pessoais ou vinculadas; acompanhar os totais no **Financeiro**.
 8. Consultar **Hoje** para ver próximos passos calculados automaticamente (prazos, briefings incompletos, tarefas e oportunidades abertas), além dos indicadores na **Visão geral** e **Dados & backup**.
 
+## Experiência de uso
+
+- **Aparência:** alternador Dark/Light no cabeçalho em qualquer módulo, incluindo propostas, materiais, briefings e modais. A preferência visual é salva separadamente dos dados de projetos; a ausência de preferência segue o sistema operacional.
+- **Fluidez:** telas não abertas são carregadas sob demanda; edições repetidas são agrupadas antes de persistir, enquanto ações de cadastro e fechamento permanecem imediatas.
+
 ## Regras de negócio
 
 - Oportunidade estimada não é faturamento nem dinheiro recebido.
