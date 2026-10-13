@@ -6,7 +6,7 @@ import { brl, dateBR, projectLabels, todayLocal } from '../lib/format'
 import { serviceSuggestion } from '../lib/pricing'
 import { projectMaterialCategories } from '../lib/projectMaterials'
 import { buildTodayActions, type TodayProjectTab } from '../lib/todayActions'
-import { briefingProgress, isQuestionVisible, unansweredRequiredQuestionIds } from '../lib/briefing'
+import { briefingProgress, briefingReviewSections, isQuestionVisible, unansweredRequiredQuestionIds } from '../lib/briefing'
 import type { BriefingAnswer, BriefingQuestionDefinition, ProjectMaterial, ProjectMaterialCategory, ProjectStatus, Transaction, TransactionType } from '../lib/types'
 
 type MainPage = 'projects' | 'leads' | 'services' | 'finance' | 'tasks'
@@ -25,11 +25,13 @@ const briefingAnswers = reactive<Record<string, BriefingAnswer>>({})
 const briefingError = ref('')
 const briefingFeedback = ref('')
 const briefingQuestions = computed(() => projectBriefing.value?.sections.flatMap(section => section.questions) ?? [])
+const briefingReview = computed(() => projectBriefing.value ? briefingReviewSections(projectBriefing.value) : [])
+const briefingMode = ref<'consulta' | 'edicao'>('consulta')
 const briefingDirty = ref(false)
 const briefingSavedAt = ref('')
 const briefingProgressValue = computed(() => projectBriefing.value ? briefingProgress({ ...projectBriefing.value, answers: { ...briefingAnswers } }) : { complete: 0, total: 0 })
 const missingBriefingAnswers = computed(() => projectBriefing.value ? unansweredRequiredQuestionIds({ ...projectBriefing.value, answers: { ...briefingAnswers } }).length : 0)
-const briefingCompleteAndSaved = computed(() => Boolean(projectBriefing.value) && !briefingDirty.value && missingBriefingAnswers.value === 0)
+const briefingCompleteAndSaved = computed(() => Boolean(projectBriefing.value) && briefingMode.value === 'consulta' && !briefingDirty.value && missingBriefingAnswers.value === 0)
 const isLastBriefingSection = computed(() => {
   const sections = projectBriefing.value?.sections ?? []
   return sections.length > 0 && secaoBriefingAtiva.value === sections[sections.length - 1]?.id
@@ -70,6 +72,8 @@ watch(() => [props.projectId, projectBriefing.value?.id] as const, () => {
   briefingFeedback.value = ''
   briefingDirty.value = false
   briefingSavedAt.value = ''
+  const savedAnswers = Object.values(projectBriefing.value?.answers ?? {})
+  briefingMode.value = savedAnswers.some(answer => Array.isArray(answer) ? answer.length > 0 : Boolean(answer.trim())) ? 'consulta' : 'edicao'
   abaAtiva.value = props.initialTab ?? 'resumo'
   openMaterialForm.value = false
   materialFeedback.value = ''
@@ -80,6 +84,35 @@ watch(() => [props.projectId, projectBriefing.value?.id] as const, () => {
 watch(() => props.initialTab, tab => { if (tab) abaAtiva.value = tab })
 
 function visibleQuestion(question: BriefingQuestionDefinition) { return isQuestionVisible(question, briefingAnswers, briefingQuestions.value) }
+
+function restoreSavedBriefingAnswers() {
+  for (const key of Object.keys(briefingAnswers)) delete briefingAnswers[key]
+  if (projectBriefing.value) Object.assign(briefingAnswers, JSON.parse(JSON.stringify(projectBriefing.value.answers)) as Record<string, BriefingAnswer>)
+  briefingDirty.value = false
+}
+
+function startBriefingEdit() {
+  restoreSavedBriefingAnswers()
+  briefingMode.value = 'edicao'
+  briefingFeedback.value = ''
+  briefingError.value = ''
+  const firstPending = projectBriefing.value ? unansweredRequiredQuestionIds(projectBriefing.value)[0] : null
+  const section = projectBriefing.value?.sections.find(item => item.questions.some(question => question.id === firstPending))
+  secaoBriefingAtiva.value = section?.id ?? projectBriefing.value?.sections[0]?.id ?? ''
+}
+
+function cancelBriefingEdit() {
+  if (briefingDirty.value && !confirm('Descartar as alterações ainda não salvas neste briefing?')) return
+  restoreSavedBriefingAnswers()
+  briefingFeedback.value = ''
+  briefingError.value = ''
+  const savedAnswers = Object.values(projectBriefing.value?.answers ?? {})
+  if (savedAnswers.some(answer => Array.isArray(answer) ? answer.length > 0 : Boolean(answer.trim()))) {
+    briefingMode.value = 'consulta'
+  } else {
+    abaAtiva.value = 'resumo'
+  }
+}
 function scalarAnswer(questionId: string): string {
   const answer = briefingAnswers[questionId]
   return typeof answer === 'string' ? answer : ''
@@ -112,6 +145,7 @@ function saveBriefing(continueToNext = false) {
   if (!projectBriefing.value) { briefingError.value = 'Este projeto não tem um questionário vinculado.'; return }
   if (!briefingDirty.value) {
     if (continueToNext) nextBriefingSection()
+    else briefingMode.value = 'consulta'
     return
   }
   try {
@@ -125,6 +159,7 @@ function saveBriefing(continueToNext = false) {
     briefingSavedAt.value = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date())
     briefingFeedback.value = `Respostas salvas com sucesso às ${briefingSavedAt.value}.` + (missingBriefingAnswers.value ? ` Ainda faltam ${missingBriefingAnswers.value} campo(s) obrigatório(s).` : '')
     if (continueToNext) nextBriefingSection()
+    else briefingMode.value = 'consulta'
   } catch (cause) { briefingError.value = cause instanceof Error ? cause.message : 'Não foi possível salvar as respostas.' }
 }
 
