@@ -26,7 +26,8 @@ npm run build
 
 | Tela | Função |
 | --- | --- |
-| Visão geral | Indicadores de pipeline, projetos, saldo, andamento do plano e publicações |
+| Visão geral | Indicadores de pipeline, projetos, saldo, andamento do plano e publicações; atalho para Hoje |
+| Hoje | Lista de prioridades calculadas a partir de prazos de projetos, briefings incompletos, tarefas e oportunidades abertas |
 | Plano de lançamento | 17 ações de 30 dias com semana, prioridade, horas e status editável |
 | Serviços e preços | Biblioteca de modelos reutilizáveis, com simulação ilustrativa de piso e preço sugerido |
 | Oportunidades | CRM com vínculo a serviço, assistente de Novo atendimento, retomada e conversão em projeto |
@@ -81,6 +82,7 @@ Consulte `AGENTS.md`, `docs/PRODUTO.md`, `docs/ROADMAP.md`, `docs/ARQUITETURA.md
 - O botão **Novo atendimento** abre um assistente em quatro etapas: cliente, serviço, proposta e decisão. É possível salvar a oportunidade em qualquer momento, retomar pelo CRM ou criar o projeto com briefing específico e tarefas copiadas do modelo.
 - Trabalhos contratados fora do CRM continuam podendo ser cadastrados diretamente na página Projetos.
 - O assistente não registra pagamento automaticamente e impede conversões duplicadas.
+- **Hoje** agrupa tarefas de acompanhamento com uma ação por projeto, sem adicionar estados artificiais. Ao clicar, abre a aba relevante do projeto ou retoma um atendimento. Prazos urgentes usam apenas datas cadastradas; valores a receber não são classificados como pagamentos vencidos.
 - O detalhe do projeto reúne serviço, oportunidade de origem, tarefas, recebimentos, despesas, materiais/ferramentas e saldo do projeto.
 - Na aba **Materiais e ferramentas**, é possível cadastrar, editar, abrir e excluir links HTTP/HTTPS categorizados. A Central não hospeda arquivos nessa versão.
 - O catálogo é uma biblioteca de modelos, com retorno ao atendimento/projeto de origem quando aberto por seus vínculos.
