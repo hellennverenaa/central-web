@@ -8,6 +8,7 @@ import { brl, dateBR, projectLabels, todayLocal } from '../lib/format'
 import { serviceSuggestion } from '../lib/pricing'
 import { projectMaterialCategories } from '../lib/projectMaterials'
 import { buildTodayActions, type TodayProjectTab } from '../lib/todayActions'
+import { confirmAction } from '../lib/confirmation'
 import { briefingProgress, briefingReviewSections, isQuestionVisible, unansweredRequiredQuestionIds } from '../lib/briefing'
 import type { BriefingAnswer, BriefingQuestionDefinition, ProjectMaterial, ProjectMaterialCategory, ProjectStatus, Transaction, TransactionType } from '../lib/types'
 
@@ -103,8 +104,8 @@ function startBriefingEdit() {
   secaoBriefingAtiva.value = section?.id ?? projectBriefing.value?.sections[0]?.id ?? ''
 }
 
-function cancelBriefingEdit() {
-  if (briefingDirty.value && !confirm('Descartar as alterações ainda não salvas neste briefing?')) return
+async function cancelBriefingEdit() {
+  if (briefingDirty.value && !(await confirmAction({ title: 'Descartar edição do briefing?', message: 'As respostas já salvas serão mantidas, mas as alterações desta edição serão perdidas.', confirmLabel: 'Descartar edição', tone: 'danger' }))) return
   restoreSavedBriefingAnswers()
   briefingFeedback.value = ''
   briefingError.value = ''
@@ -248,15 +249,15 @@ function saveMaterial() {
     openMaterialForm.value = false
   } catch (cause) { materialError.value = cause instanceof Error ? cause.message : 'Não foi possível salvar o link.' }
 }
-function dropMaterial(material: ProjectMaterial) {
-  if (!confirm(`Excluir o link “${material.name}” deste projeto?`)) return
+async function dropMaterial(material: ProjectMaterial) {
+  if (!(await confirmAction({ title: 'Excluir link deste projeto?', message: `O link “${material.name}” será removido da lista de materiais.`, confirmLabel: 'Excluir link', tone: 'danger' }))) return
   try {
     removeProjectMaterial(material.id, props.projectId)
     materialFeedback.value = persistenceError.value || 'Link removido deste projeto.'
   } catch (cause) { materialError.value = cause instanceof Error ? cause.message : 'Não foi possível excluir o link.' }
 }
-function dropTask(id: string) { if (confirm('Excluir esta tarefa?')) removeItem('tasks', id) }
-function dropTransaction(id: string) { if (confirm('Excluir este lançamento?')) removeItem('transactions', id) }
+async function dropTask(id: string) { if (await confirmAction({ title: 'Excluir tarefa?', message: 'Esta tarefa será removida do projeto.', confirmLabel: 'Excluir tarefa', tone: 'danger' })) removeItem('tasks', id) }
+async function dropTransaction(id: string) { if (await confirmAction({ title: 'Excluir lançamento financeiro?', message: 'O lançamento será removido. Revise os valores e vínculos de parcelas após a exclusão.', confirmLabel: 'Excluir lançamento', tone: 'danger' })) removeItem('transactions', id) }
 </script>
 
 <template>
