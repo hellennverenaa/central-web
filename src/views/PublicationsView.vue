@@ -3,13 +3,14 @@ import { computed, reactive, ref } from 'vue'
 import { Megaphone, Plus, Trash2, Copy, ExternalLink } from 'lucide-vue-next'
 import { state, addPublication, removeItem } from '../lib/store'
 import type { PublicationStatus } from '../lib/types'
+import { confirmAction } from '../lib/confirmation'
 const showForm=ref(false)
 const search=ref('')
 const message=ref('')
 const form=reactive({week:'Semana 2',channel:'Instagram',topic:'',copy:'',audience:'Todos',status:'planejado' as PublicationStatus,result:'',url:''})
 const filtered=computed(()=>state.publications.filter(p=>(p.topic+' '+p.channel+' '+p.week).toLowerCase().includes(search.value.toLowerCase())))
 function submit(){if(!form.topic.trim())return;addPublication({...form,topic:form.topic.trim()});form.topic='';form.copy='';showForm.value=false}
-function drop(id:string){if(confirm('Excluir publicação do calendário?'))removeItem('publications',id)}
+async function drop(id:string){if(await confirmAction({title:'Excluir publicação do calendário?',message:'Este planejamento de publicação será removido.',confirmLabel:'Excluir publicação',tone:'danger'}))removeItem('publications',id)}
 async function copy(value:string){try {await navigator.clipboard.writeText(value);message.value='Texto copiado para a área de transferência.'}catch {message.value='Seu navegador não permitiu copiar automaticamente.'}}
 function safeUrl(url:string){try{const target=new URL(url); return ['https:','http:'].includes(target.protocol)?target.href:null}catch{return null}}
 </script>
