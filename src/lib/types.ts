@@ -40,6 +40,17 @@ export interface Transaction {
   createdAt: string
 }
 
+export type ProjectMaterialCategory = 'questionario' | 'referencia' | 'design' | 'arquivo' | 'documento' | 'entrega' | 'outro'
+export interface ProjectMaterial {
+  id: string
+  projectId: string
+  name: string
+  category: ProjectMaterialCategory
+  url: string
+  notes: string
+  createdAt: string
+}
+
 export interface Task {
   id: string
   title: string
@@ -79,7 +90,7 @@ export interface ProjectBriefing {
 }
 
 export interface Workspace {
-  schemaVersion: 4
+  schemaVersion: 5
   leads: Lead[]
   projects: Project[]
   transactions: Transaction[]
@@ -89,5 +100,6 @@ export interface Workspace {
   publications: Publication[]
   briefingTemplates: BriefingTemplate[]
   projectBriefings: ProjectBriefing[]
+  projectMaterials: ProjectMaterial[]
   legacyBriefing: BriefingQuestion[]
 }
