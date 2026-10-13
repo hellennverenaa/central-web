@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { ClipboardList, Copy, Info, Pencil, Plus, Trash2 } from 'lucide-vue-next'
 import { state, addBriefingTemplate, persistenceError, removeItem, updateBriefingTemplate } from '../lib/store'
 import { validateBriefingTemplate } from '../lib/briefing'
+import { confirmAction } from '../lib/confirmation'
 import type { BriefingQuestionDefinition, BriefingQuestionType, BriefingSection, BriefingTemplate } from '../lib/types'
 
 const showForm = ref(false)
@@ -72,12 +73,12 @@ function submit() {
     reset()
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'Não foi possível salvar o questionário.' }
 }
-function drop(template: BriefingTemplate) {
+async function drop(template: BriefingTemplate) {
   const references = linkedCount(template.id)
   const message = references
     ? `Este modelo está associado a ${references} serviço(s). Removê-lo preserva as cópias e respostas já vinculadas aos projetos. Continuar?`
     : 'Excluir este modelo da biblioteca? Projetos existentes preservam suas cópias.'
-  if (confirm(message)) removeItem('briefingTemplates', template.id)
+  if (await confirmAction({ title: 'Excluir modelo de briefing?', message, confirmLabel: 'Excluir modelo', tone: 'danger' })) removeItem('briefingTemplates', template.id)
 }
 async function copy(template: BriefingTemplate) {
   const text = template.sections.map(section => `${section.title}\n${section.questions.map(question => `• ${question.label}${question.required ? ' *' : ''}`).join('\n')}`).join('\n\n')
