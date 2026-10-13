@@ -26,6 +26,7 @@ const focusedServiceId = ref('')
 const serviceOrigin = ref<{ type: 'lead' | 'project'; id: string } | null>(null)
 const serviceOriginLabel = computed(() => serviceOrigin.value?.type === 'lead' ? 'Voltar à oportunidade' : serviceOrigin.value?.type === 'project' ? 'Voltar ao projeto' : '')
 const attendanceWizardOpen = ref(false)
+const attendanceLeadId = ref<string | null>(null)
 const requestNewDirectProject = ref(0)
 const nav = [
   { id: 'dashboard' as MainPage, text: 'Visão geral', icon: LayoutDashboard },
@@ -48,7 +49,8 @@ const gruposMenu = [
 const title = computed(() => page.value === 'project-detail' ? state.projects.find(project => project.id === selectedProjectId.value)?.name || 'Detalhe do projeto' : nav.find(item => item.id === page.value)?.text || 'Central')
 const date = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
 function navigate(next: MainPage) { page.value = next; mobileNav.value = false; serviceOrigin.value = null; focusedServiceId.value = '' }
-function iniciarAtendimento() { attendanceWizardOpen.value = true; mobileNav.value = false }
+function iniciarAtendimento() { attendanceLeadId.value = null; attendanceWizardOpen.value = true; mobileNav.value = false }
+function resumeAttendance(id: string) { attendanceLeadId.value = id; attendanceWizardOpen.value = true; mobileNav.value = false }
 function wizardOpenLead(id: string) { attendanceWizardOpen.value = false; openLead(id) }
 function wizardOpenProject(id: string, notice = '') { attendanceWizardOpen.value = false; openProject(id, notice) }
 function wizardDirectProject() { attendanceWizardOpen.value = false; requestNewDirectProject.value += 1; navigate('projects') }
@@ -62,7 +64,7 @@ function returnFromService() { const origin = serviceOrigin.value; if (!origin) 
 
 <template>
   <div class="app-shell">
-    <NewAttendanceWizard v-if="attendanceWizardOpen" @close="attendanceWizardOpen = false" @open-lead="wizardOpenLead" @open-project="wizardOpenProject" @create-direct-project="wizardDirectProject" />
+    <NewAttendanceWizard v-if="attendanceWizardOpen" :initial-lead-id="attendanceLeadId" @close="attendanceWizardOpen = false" @open-lead="wizardOpenLead" @open-project="wizardOpenProject" @create-direct-project="wizardDirectProject" />
     <div v-if="mobileNav" class="scrim" @click="mobileNav = false"></div>
     <aside class="sidebar" :class="{ 'sidebar-open': mobileNav }">
       <div class="brand">
@@ -96,7 +98,7 @@ function returnFromService() { const origin = serviceOrigin.value; if (!origin) 
         <DashboardView v-if="page === 'dashboard'" @go="navigate" @open-project="openProject" @iniciar-atendimento="iniciarAtendimento" />
         <PlanView v-else-if="page === 'plan'" />
         <ServicesView v-else-if="page === 'services'" :focus-service-id="focusedServiceId" :origin-label="serviceOriginLabel" @back="returnFromService" />
-        <LeadsView v-else-if="page === 'leads'" :focus-lead-id="focusedLeadId" @open-project="openProject" @open-service="openLeadService" />
+        <LeadsView v-else-if="page === 'leads'" :focus-lead-id="focusedLeadId" @open-project="openProject" @open-service="openLeadService" @resume-attendance="resumeAttendance" />
         <ProjectDetailView v-else-if="page === 'project-detail'" :project-id="selectedProjectId" :notice="projectNotice" @go="navigate" @open-lead="openLead" @open-service="openProjectService" />
         <ProjectsView v-else-if="page === 'projects'" :request-new-project="requestNewDirectProject" @open-project="openProject" />
         <FinanceView v-else-if="page === 'finance'" @open-project="openProject" />
