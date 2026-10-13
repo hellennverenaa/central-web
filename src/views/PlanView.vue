@@ -3,6 +3,7 @@ import { computed, ref, reactive } from 'vue'
 import { CalendarRange, Plus, Trash2, Target, CheckCircle2 } from 'lucide-vue-next'
 import { state, metrics, addPlan, removeItem } from '../lib/store'
 import type { PlanStatus } from '../lib/types'
+import { confirmAction } from '../lib/confirmation'
 const week = ref('Todas')
 const showForm = ref(false)
 const form = reactive({week:'Semana 1', title:'', goal:'', priority:'Média', status:'nao-iniciado' as PlanStatus, hours:1, nextStep:'', notes:''})
@@ -10,7 +11,7 @@ const weeks = ['Todas','Semana 1','Semana 2','Semana 3','Semana 4','Extras']
 const visible = computed(() => state.plan.filter(p=>week.value === 'Todas' || p.week === week.value))
 const percent = computed(() => metrics.value.planTotal ? Math.round(100*metrics.value.planDone/metrics.value.planTotal) : 0)
 function submit(){ if(!form.title.trim())return; addPlan({...form,title:form.title.trim(),hours:Number(form.hours) || 0}); form.title='';form.goal='';form.nextStep='';form.notes='';showForm.value=false }
-function drop(id:string){if(confirm('Remover esta tarefa do plano?'))removeItem('plan',id)}
+async function drop(id:string){if(await confirmAction({title:'Remover item do plano?',message:'Esta ação será retirada do plano de lançamento.',confirmLabel:'Remover item',tone:'danger'}))removeItem('plan',id)}
 </script>
 <template>
 <div class="view-enter">
