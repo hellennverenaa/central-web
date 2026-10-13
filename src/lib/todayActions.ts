@@ -1,10 +1,11 @@
 import { unansweredRequiredQuestionIds } from './briefing.ts'
+import { installmentBalance } from './projectMilestones.ts'
 import type { Workspace } from './types.ts'
 
 export type TodayPriority = 'urgente' | 'proximo' | 'acompanhar'
-export type TodayProjectTab = 'resumo' | 'briefing' | 'tarefas' | 'financeiro'
+export type TodayProjectTab = 'resumo' | 'briefing' | 'tarefas' | 'financeiro' | 'entrega'
 export type TodayAction =
-  | { id: string; target: 'project'; entityId: string; tab: TodayProjectTab; priority: TodayPriority; kind: 'prazo' | 'briefing' | 'producao' | 'financeiro'; title: string; subject: string; description: string; cta: string; sortOrder: number }
+  | { id: string; target: 'project'; entityId: string; tab: TodayProjectTab; priority: TodayPriority; kind: 'prazo' | 'briefing' | 'producao' | 'financeiro' | 'cobranca' | 'entrega'; title: string; subject: string; description: string; cta: string; sortOrder: number }
   | { id: string; target: 'lead'; entityId: string; priority: TodayPriority; kind: 'comercial'; title: string; subject: string; description: string; cta: string; sortOrder: number }
   | { id: string; target: 'task'; entityId: string; priority: TodayPriority; kind: 'avulsa'; title: string; subject: string; description: string; cta: string; sortOrder: number }
 
@@ -22,7 +23,7 @@ function daysUntil(date: string, today: string): number | null {
  * Apenas uma ação principal por projeto; concluídos/entregues não reaparecem por tarefas antigas.
  */
 export function buildTodayActions(
-  workspace: Pick<Workspace, 'projects' | 'projectBriefings' | 'tasks' | 'leads' | 'transactions'>,
+  workspace: Pick<Workspace, 'projects' | 'projectBriefings' | 'tasks' | 'leads' | 'transactions' | 'projectInstallments' | 'projectDeliveries'>,
   today: string,
 ): TodayAction[] {
   const actions: TodayAction[] = []
@@ -33,6 +34,27 @@ export function buildTodayActions(
       .reduce((sum, item) => sum + item.amount, 0)
     const outstanding = Math.max(0, project.value - received)
 
+    // Só um vencimento explicitamente registrado pode gerar este alerta.
+    // Sem vínculo financeiro, sugerimos conferir, não afirmar inadimplência.
+    const installment = workspace.projectInstallments
+      .filter(item => item.projectId === project.id && installmentBalance(item, workspace.transactions) > 0)
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+      .find(item => { const days = daysUntil(item.dueDate, today); return days !== null && days <= 7 })
+    if (installment) {
+      const days = daysUntil(installment.dueDate, today)!
+      actions.push({
+        id: `project:${project.id}`, entityId: project.id, target: 'project', tab: 'financeiro',
+        kind: 'cobranca', priority: days <= 0 ? 'urgente' : 'proximo',
+        sortOrder: days < 0 ? days : days === 0 ? 1 : 12 + days,
+        title: days < 0 ? 'Conferir cobrança prevista com prazo ultrapassado' : days === 0
+          ? 'Conferir cobrança prevista para hoje' : 'Cobrança prevista se aproxima',
+        subject: project.name,
+        description: `${installment.title}: vencimento combinado em ${installment.dueDate.slice(8, 10)}/${installment.dueDate.slice(5, 7)}/${installment.dueDate.slice(0, 4)}. ` +
+          'Confira se houve recebimento e vincule-o à parcela. Não significa necessariamente que o cliente esteja inadimplente.',
+        cta: 'Conferir financeiro',
+      })
+      continue
+    }
     if (project.status === 'entregue') {
       if (outstanding > 0) actions.push({
         id: `project:${project.id}`, entityId: project.id, target: 'project', tab: 'financeiro',
@@ -87,12 +109,26 @@ export function buildTodayActions(
       continue
     }
 
+    const delivery = workspace.projectDeliveries.find(item => item.projectId === project.id)
+    if (project.status === 'revisao' || (delivery?.approvedAt && !delivery.deliveredAt)) {
+      actions.push({
+        id: `project:${project.id}`, entityId: project.id, target: 'project', tab: 'entrega',
+        kind: 'entrega', priority: 'proximo', sortOrder: 50,
+        title: delivery?.approvedAt ? 'Preparar entrega final' : 'Acompanhar aprovação da revisão',
+        subject: project.name, description: delivery?.approvedAt
+          ? 'A aprovação foi registrada. Revise os links e registre a data da entrega quando ela acontecer.'
+          : 'O projeto está em revisão. Confira se a aprovação do cliente já foi recebida.',
+        cta: 'Abrir entrega',
+      })
+      continue
+    }
+
     if (outstanding > 0) {
       actions.push({
         id: `project:${project.id}`, entityId: project.id, target: 'project', tab: 'financeiro',
         kind: 'financeiro', priority: 'acompanhar', sortOrder: 80,
         title: 'Revisar valor ainda a receber', subject: project.name,
-        description: 'Confira o que já foi recebido e o que ainda falta registrar. Nenhuma data de cobrança foi definida.',
+        description: 'Confira o que já foi recebido e o que ainda falta registrar. Confira as cobranças combinadas. Nenhuma data foi inventada.',
         cta: 'Ver financeiro',
       })
     }
