@@ -186,7 +186,7 @@ function isValidWorkspaceV5(x: unknown): x is Workspace {
     if (!['id', 'projectId', 'name', 'url', 'notes', 'createdAt'].every(key => str(row[key]))) return false
     return Boolean(String(row.id).trim()) && Boolean(String(row.projectId).trim()) &&
       !validateProjectMaterial(row as unknown as ProjectMaterial) &&
-      safeProjectMaterialUrl(String(row.url)) === String(row.url)
+      Boolean(safeProjectMaterialUrl(String(row.url)))
   })) return false
   const items = materials as ProjectMaterial[]
   const projectIds = new Set(x.projects.map(project => project.id))
