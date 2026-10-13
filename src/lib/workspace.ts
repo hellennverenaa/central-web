@@ -1,14 +1,15 @@
 import type {
   BriefingQuestion, BriefingQuestionDefinition, BriefingSection, BriefingTemplate,
-  Lead, Project, ProjectBriefing, Publication, Service, Task, Transaction, Workspace,
+  Lead, Project, ProjectBriefing, ProjectMaterial, Publication, Service, Task, Transaction, Workspace,
 } from './types.ts'
 import {
   initialBriefing, initialBriefingTemplates, initialPlan, initialPublications, initialServices,
   serviceBriefingTemplates, serviceTaskTemplates,
 } from './catalog.ts'
+import { safeProjectMaterialUrl, validateProjectMaterial } from './projectMaterials.ts'
 
-export const WORKSPACE_STORAGE_KEY = 'central-web:workspace:v4'
-export const LEGACY_STORAGE_KEYS = ['central-web:workspace:v3', 'central-web:workspace:v2', 'central-web:workspace:v1'] as const
+export const WORKSPACE_STORAGE_KEY = 'central-web:workspace:v5'
+export const LEGACY_STORAGE_KEYS = ['central-web:workspace:v4', 'central-web:workspace:v3', 'central-web:workspace:v2', 'central-web:workspace:v1'] as const
 
 export interface StoragePort {
   getItem(key: string): string | null
@@ -35,7 +36,7 @@ function enrichService(service: Omit<Service, 'taskTemplates' | 'briefingTemplat
 
 export function createInitialWorkspace(): Workspace {
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     leads: [],
     projects: [],
     transactions: [],
@@ -45,6 +46,7 @@ export function createInitialWorkspace(): Workspace {
     publications: clone([...initialPublications]),
     briefingTemplates: clone(initialBriefingTemplates),
     projectBriefings: [],
+    projectMaterials: [],
     legacyBriefing: clone([...initialBriefing]),
   }
 }
@@ -140,8 +142,8 @@ function validCollectionIds(rows: Array<{ id: string }>): boolean {
   return new Set(rows.map(row => row.id)).size === rows.length
 }
 
-function isValidWorkspaceV4(x: unknown): x is Workspace {
-  if (!object(x) || x.schemaVersion !== 4 ||
+function isValidWorkspaceCore(x: unknown): x is Omit<Workspace, 'schemaVersion' | 'projectMaterials'> & { schemaVersion: 4 | 5 } {
+  if (!object(x) || ![4, 5].includes(Number(x.schemaVersion)) ||
       !isArray(x.leads, row => validLeadBase(row) && nullableString(row.serviceId) && nullableString(row.convertedProjectId)) ||
       !isArray(x.projects, row => validProjectBase(row) && nullableString(row.serviceId) && nullableString(row.sourceLeadId) && str(row.briefingId)) ||
       !isArray(x.transactions, row => validTransactionBase(row) && nullableString(row.projectId)) ||
@@ -175,6 +177,20 @@ function isValidWorkspaceV4(x: unknown): x is Workspace {
     workspace.projectBriefings.every(briefing => projectIds.has(briefing.projectId) && (!briefing.templateId || templateIds.has(briefing.templateId)) && validAnswersForSections(briefing.sections, briefing.answers)) &&
     workspace.transactions.every(transaction => !transaction.projectId || projectIds.has(transaction.projectId)) &&
     workspace.tasks.every(task => !task.projectId || projectIds.has(task.projectId))
+}
+
+function isValidWorkspaceV5(x: unknown): x is Workspace {
+  if (!isValidWorkspaceCore(x) || x.schemaVersion !== 5) return false
+  const materials = (x as unknown as Record<string, unknown>).projectMaterials
+  if (!isArray(materials, row => {
+    if (!['id', 'projectId', 'name', 'url', 'notes', 'createdAt'].every(key => str(row[key]))) return false
+    return Boolean(String(row.id).trim()) && Boolean(String(row.projectId).trim()) &&
+      !validateProjectMaterial(row as unknown as ProjectMaterial) &&
+      safeProjectMaterialUrl(String(row.url)) === String(row.url)
+  })) return false
+  const items = materials as ProjectMaterial[]
+  const projectIds = new Set(x.projects.map(project => project.id))
+  return validCollectionIds(items) && items.every(item => projectIds.has(item.projectId))
 }
 
 function serviceIdForLabel(label: string, services: Service[]): string | null {
@@ -300,16 +316,20 @@ function migrateV3(input: Record<string, unknown>): Workspace | null {
   return result
 }
 
-/** Reads current data or v1/v2/v3 backups and returns a normalized v4 workspace. */
+/** Reads current data and v1/v2/v3/v4 backups as a normalized v5 workspace. */
 export function migrateWorkspace(input: unknown): Workspace {
   if (!object(input)) throw new Error('Backup inválido ou versão incompatível.')
-  if (isValidWorkspaceV4(input)) return clone(input)
+  if (isValidWorkspaceV5(input)) return clone(input)
+  if (isValidWorkspaceCore(input) && input.schemaVersion === 4) {
+    const updated: Workspace = { ...clone(input), schemaVersion: 5, projectMaterials: [] }
+    if (!isValidWorkspaceV5(updated)) throw new Error('Backup inválido ou versão incompatível.')
+    return updated
+  }
   let migrated: Workspace | null = null
   if (input.schemaVersion === 1) migrated = migrateV1(input)
   else if (input.schemaVersion === 2) migrated = migrateV2(input)
   else if (input.schemaVersion === 3) migrated = migrateV3(input)
-  if (!migrated) throw new Error('Backup inválido ou versão incompatível.')
-  if (!isValidWorkspaceV4(migrated)) throw new Error('Backup inválido ou versão incompatível.')
+  if (!migrated || !isValidWorkspaceV5(migrated)) throw new Error('Backup inválido ou versão incompatível.')
   return migrated
 }
 
@@ -329,9 +349,9 @@ export function readWorkspace(storage?: StoragePort): WorkspaceLoadResult {
     try {
       const raw: unknown = JSON.parse(serialized)
       const workspace = migrateWorkspace(raw)
-      const version = object(raw) && [1, 2, 3].includes(Number(raw.schemaVersion)) ? Number(raw.schemaVersion) : null
+      const version = object(raw) && [1, 2, 3, 4].includes(Number(raw.schemaVersion)) ? Number(raw.schemaVersion) : null
       if (version !== null) {
-        try { writeWorkspace(workspace, storage) } catch { warning = 'Os dados foram carregados, mas não foi possível gravar a migração v4.' }
+        try { writeWorkspace(workspace, storage) } catch { warning = 'Os dados foram carregados, mas não foi possível gravar a migração v5.' }
       }
       return { workspace, migratedFrom: version, warning }
     } catch {
