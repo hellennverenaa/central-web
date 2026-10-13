@@ -81,9 +81,7 @@ function close() {
 }
 
 function newProjectDirectly() {
-  if (form.name.trim() || form.contact.trim() || form.notes.trim()) {
-    if (!confirm('Abrir o cadastro direto de projeto? As informações deste assistente que não foram salvas serão descartadas.')) return
-  }
+  if (hasUnsavedChanges.value && !confirm('Abrir o cadastro direto de projeto? As informações deste assistente que não foram salvas serão descartadas.')) return
   emit('createDirectProject')
 }
 
