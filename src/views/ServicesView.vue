@@ -4,6 +4,7 @@ import { ArrowLeft, Calculator, ClipboardList, Info, Pencil, Plus, Trash2 } from
 import { state, addService, persistenceError, removeItem, updateService } from '../lib/store'
 import { brl } from '../lib/format'
 import { serviceFloor, serviceSuggestion } from '../lib/pricing'
+import { confirmAction } from '../lib/confirmation'
 import type { Service } from '../lib/types'
 
 const props = defineProps<{ focusServiceId?: string | null; originLabel?: string }>()
@@ -60,12 +61,12 @@ function submit() {
     reset()
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'Não foi possível salvar o modelo de serviço.' }
 }
-function drop(service: Service) {
+async function drop(service: Service) {
   const references = relatedCount(service.id)
   const message = references
     ? `Este modelo está vinculado a ${references} oportunidade(s) ou projeto(s). Os projetos mantêm seu briefing e tarefas atuais. Excluir o vínculo do catálogo?`
     : 'Excluir este modelo de serviço da biblioteca?'
-  if (confirm(message)) removeItem('services', service.id)
+  if (await confirmAction({ title: 'Excluir modelo de serviço?', message, confirmLabel: 'Excluir modelo', tone: 'danger' })) removeItem('services', service.id)
 }
 function focusService(id?: string | null) { if (id) void nextTick(() => document.getElementById(`service-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })) }
 watch(() => props.focusServiceId, focusService, { immediate: true })
