@@ -6,8 +6,8 @@ import { brl, leadLabels, todayLocal, whatsappHref } from '../lib/format'
 import { initialConversionPrice, serviceSuggestion } from '../lib/pricing'
 import type { Lead, LeadStage, ProjectStatus } from '../lib/types'
 
-const props = defineProps<{ focusLeadId?: string | null; pedidoNovoAtendimento?: number }>()
-const emit = defineEmits<{ openProject: [id: string, notice?: string]; openService: [id: string, leadId: string]; atendimentoIniciado: [] }>()
+const props = defineProps<{ focusLeadId?: string | null }>()
+const emit = defineEmits<{ openProject: [id: string, notice?: string]; openService: [id: string, leadId: string] }>()
 const stages: LeadStage[] = ['novo', 'conversa', 'proposta', 'ganho', 'perdido']
 const showForm = ref(false)
 const showConversion = ref(false)
@@ -32,9 +32,6 @@ function resetForm() {
   error.value = ''
 }
 function openCreate() { resetForm(); feedback.value = ''; showForm.value = true }
-watch(() => props.pedidoNovoAtendimento, pedido => {
-  if (pedido) { openCreate(); emit('atendimentoIniciado') }
-}, { immediate: true })
 function edit(lead: Lead) {
   editingId.value = lead.id
   Object.assign(form, { name: lead.name, contact: lead.contact, service: lead.service, serviceId: lead.serviceId ?? '', stage: lead.stage, value: lead.value, notes: lead.notes })
