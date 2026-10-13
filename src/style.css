@@ -348,3 +348,35 @@ tr[id^="lead-"]:target,article[id^="service-"]:target{outline:2px solid #aa99ea;
 .delivery-links{display:grid;gap:10px;border-top:1px solid #eeebf4;padding-top:15px;margin-bottom:13px}
 .delivery-links a{display:flex;align-items:center;gap:6px;font-size:12px;color:#7059b5;overflow-wrap:anywhere}
 @media(max-width:760px){.delivery-milestones{grid-template-columns:1fr}.planned-row{align-items:flex-start;flex-wrap:wrap}.planned-values{text-align:left}.planned-row>.row-actions{margin-left:auto}}
+
+/* Etapa 6 — orçamento como documento consultável, com edição de rascunho sob demanda. */
+.proposal-action-existing{color:#725abe;background:#f2edff}
+.proposal-backdrop{z-index:1120;padding:16px}
+.proposal-dialog{width:min(760px,100%);max-width:760px;max-height:calc(100dvh - 32px);overflow:auto}
+.proposal-header{align-items:flex-start;gap:10px}
+.proposal-header>div{min-width:0}
+.proposal-header h2{line-height:1.3}
+.proposal-subtitle{font-size:12px;line-height:1.7;color:#898397;margin:7px 0 15px}
+.proposal-editor-intro{display:flex;align-items:flex-start;gap:10px;padding:12px 15px;border-radius:11px;background:#f7f5ff;color:#64548f;margin:0 0 20px}
+.proposal-editor-intro svg{flex:0 0 18px;margin-top:2px}
+.proposal-editor-intro p{font-size:12px;line-height:1.65;margin:0}
+.proposal-tools{display:flex;align-items:end;gap:10px;flex-wrap:wrap;justify-content:space-between;margin:0 0 17px}
+.proposal-version-picker{display:grid;gap:5px;flex:1;min-width:170px}
+.proposal-version-picker label{font-size:10px;font-weight:800;color:#888093}
+.proposal-version-picker select{width:100%;padding:10px;border:1px solid #e6e1f0;border-radius:9px;font-size:12px;color:#5d5571}
+.proposal-status{white-space:nowrap}
+.proposal-document{padding:30px;border:1px solid #e9e4ee;background:#fff;border-radius:14px;box-shadow:0 8px 20px #28224108}
+.proposal-document>header{border-bottom:1px solid #eae5f0;padding-bottom:20px;margin-bottom:24px}
+.proposal-document>header span{font-size:10px;color:#8877b6;font-weight:850;letter-spacing:.12em}
+.proposal-document>header h3{font-size:22px;color:#3b3450;margin:9px 0 4px;overflow-wrap:anywhere}
+.proposal-document>header p{font-size:12px;color:#8e879a;margin:0}
+.proposal-document section{margin:0 0 25px;min-width:0}
+.proposal-document section h4{font-size:11px;color:#8f86a0;font-weight:800;letter-spacing:.04em;margin:0 0 8px;text-transform:uppercase}
+.proposal-document section p{font-size:13px;line-height:1.75;color:#51495e;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.proposal-document section.proposal-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.proposal-document>footer{border-top:1px solid #ece8f1;padding-top:22px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.proposal-document>footer span{font-size:12px;font-weight:800;color:#5a526a}
+.proposal-document>footer strong{font-size:25px;color:#514078}
+.proposal-actions{border-top:1px solid #edeaf2;margin-top:18px;padding-top:18px;display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+.proposal-accepted-note{display:flex;align-items:center;gap:8px;line-height:1.65;font-size:12px;color:#546c58;margin:0}
+@media(max-width:650px){.proposal-backdrop{padding:7px}.proposal-dialog{padding:18px;max-height:calc(100dvh - 14px)}.proposal-document{padding:19px}.proposal-document section.proposal-columns{grid-template-columns:1fr;gap:14px}.proposal-document>footer strong{font-size:20px}.proposal-actions .btn{flex:1}}
