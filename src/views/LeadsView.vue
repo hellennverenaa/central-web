@@ -3,7 +3,7 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ArrowRight, FolderKanban, MessageCircle, Pencil, Plus, Search, Trash2, UsersRound } from 'lucide-vue-next'
 import { state, addLead, convertLeadToProject, persistenceError, removeItem, updateLead } from '../lib/store'
 import { brl, leadLabels, todayLocal, whatsappHref } from '../lib/format'
-import { serviceSuggestion } from '../lib/pricing'
+import { initialConversionPrice, serviceSuggestion } from '../lib/pricing'
 import type { Lead, LeadStage, ProjectStatus } from '../lib/types'
 
 const props = defineProps<{ focusLeadId?: string | null; pedidoNovoAtendimento?: number }>()
@@ -62,7 +62,7 @@ function beginConversion(lead: Lead) {
   if (lead.convertedProjectId) { emit('openProject', lead.convertedProjectId); return }
   convertingLead.value = lead
   const service = state.services.find(item => item.id === lead.serviceId) ?? state.services.find(item => item.name.trim().toLocaleLowerCase('pt-BR') === lead.service.trim().toLocaleLowerCase('pt-BR'))
-  Object.assign(conversion, { name: `${lead.service} — ${lead.name}`, client: lead.name, status: 'planejado', deadline: todayLocal(), value: service ? serviceSuggestion(service) : 0 })
+  Object.assign(conversion, { name: `${lead.service} — ${lead.name}`, client: lead.name, status: 'planejado', deadline: todayLocal(), value: initialConversionPrice(lead.value, service ?? null) })
   error.value = ''
   feedback.value = ''
   showConversion.value = true
@@ -83,6 +83,7 @@ function drop(id: string) {
   const prompt = linkedProject ? `Excluir esta oportunidade? O projeto “${linkedProject.name}” permanecerá, mas perderá o vínculo com a oportunidade.` : 'Excluir esta oportunidade?'
   if (confirm(prompt)) removeItem('leads', id)
 }
+function openLinkedProject(lead: Lead) { if (lead.convertedProjectId) emit('openProject', lead.convertedProjectId) }
 function announceStageSaved() { feedback.value = persistenceError.value || 'Etapa atualizada.' }
 function jumpToLead(id?: string | null) {
   if (!id) return
@@ -104,12 +105,12 @@ watch(() => props.focusLeadId, jumpToLead, { immediate: true })
         <table v-if="filtered.length" class="data-table"><thead><tr><th>CLIENTE</th><th>SERVIÇO</th><th>ESTIMATIVA</th><th>ETAPA</th><th>AÇÕES</th></tr></thead><tbody>
           <tr v-for="lead in filtered" :id="`lead-${lead.id}`" :key="lead.id">
             <td><div class="client-cell"><div class="initial-avatar">{{ lead.name[0]?.toUpperCase() }}</div><div><strong>{{ lead.name }}</strong><small>{{ lead.contact || 'Sem contato informado' }}</small></div></div></td>
-            <td><button v-if="lead.serviceId" class="table-link" @click="emit('openService', lead.serviceId)">{{ state.services.find(service => service.id === lead.serviceId)?.name ?? lead.service }} <ArrowRight :size="13"/></button><span v-else>{{ lead.service }}</span></td>
+            <td><button v-if="lead.serviceId" class="table-link" :aria-label="`Ver modelo do serviço ${lead.service}`" title="Ver modelo do serviço" @click="emit('openService', lead.serviceId)">{{ state.services.find(service => service.id === lead.serviceId)?.name ?? lead.service }} <ArrowRight :size="13"/></button><span v-else>{{ lead.service }}</span></td>
             <td class="strong">{{ brl(lead.value) }}</td>
             <td><select v-model="lead.stage" class="status-select" :class="lead.stage" :aria-label="`Etapa de ${lead.name}`" @change="announceStageSaved"><option v-for="stage in stages" :key="stage" :value="stage">{{ leadLabels[stage] }}</option></select></td>
             <td><div class="row-actions">
               <a v-if="whatsappHref(lead.contact)" :href="whatsappHref(lead.contact) || '#'" target="_blank" rel="noopener noreferrer" class="icon-button" :aria-label="`Conversar com ${lead.name} no WhatsApp`"><MessageCircle :size="17"/></a>
-              <button v-if="lead.convertedProjectId" class="icon-button" :aria-label="`Abrir projeto de ${lead.name}`" title="Abrir projeto" @click="beginConversion(lead)"><FolderKanban :size="16"/></button>
+              <button v-if="lead.convertedProjectId" class="icon-button" :aria-label="`Abrir projeto de ${lead.name}`" title="Abrir projeto" @click="openLinkedProject(lead)"><FolderKanban :size="16"/></button>
               <button v-else class="icon-button" :aria-label="`Converter ${lead.name} em projeto`" title="Converter em projeto" @click="beginConversion(lead)"><ArrowRight :size="16"/></button>
               <button class="icon-button" :aria-label="`Editar ${lead.name}`" @click="edit(lead)"><Pencil :size="16"/></button>
               <button class="icon-button danger" :aria-label="`Excluir ${lead.name}`" @click="drop(lead.id)"><Trash2 :size="16"/></button>
@@ -133,11 +134,12 @@ watch(() => props.focusLeadId, jumpToLead, { immediate: true })
     </div></div></Teleport>
 
     <Teleport to="body"><div v-if="showConversion && convertingLead" class="modal-backdrop" @click.self="showConversion = false"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="convert-title"><div class="modal-head"><h2 id="convert-title">Converter em projeto</h2><button class="icon-button" aria-label="Fechar" @click="showConversion = false">✕</button></div>
-      <form @submit.prevent="submitConversion"><div class="notice-box subtle-notice"><div><b>Estimativa do pipeline: {{ brl(convertingLead.value) }}</b><p>O preço sugerido vem do serviço e precisa ser confirmado. A estimativa fica na oportunidade; a conversão não registra recebimento nem despesa.</p></div></div>
+      <form @submit.prevent="submitConversion"><div class="notice-box subtle-notice"><div><b>Estimativa do pipeline: {{ brl(convertingLead.value) }}</b><p>O valor informado na oportunidade é usado primeiro. A sugestão do catálogo é apenas uma referência; nenhum recebimento é registrado automaticamente.</p></div></div>
         <div class="field"><label for="c-name">Nome do projeto *</label><input id="c-name" v-model="conversion.name" maxlength="140" required autofocus/></div>
         <div class="field"><label for="c-client">Cliente *</label><input id="c-client" v-model="conversion.client" maxlength="120" required/></div>
+        <div v-if="conversionService" class="conversion-price-reference"><span>Referência do catálogo: <b>{{ brl(serviceSuggestion(conversionService)) }}</b></span><button type="button" class="btn btn-outline btn-slim" @click="conversion.value = serviceSuggestion(conversionService)">Aplicar referência</button></div>
         <div class="conversion-generation-summary"><b>{{ conversionService?.name || convertingLead.service }}</b><span>{{ conversionService?.taskTemplates.length ?? 3 }} tarefa(s) iniciais e {{ state.briefingTemplates.find(template => template.id === conversionService?.briefingTemplateId)?.name || state.briefingTemplates[0]?.name || 'questionário geral' }}</span><small>O projeto ficará ligado à oportunidade original, com contato e observações preservados.</small></div>
-        <div class="form-row"><div class="field"><label for="c-value">Preço combinado (R$) · revise a sugestão</label><input id="c-value" v-model.number="conversion.value" type="number" min="0" step="0.01" required/></div><div class="field"><label for="c-deadline">Prazo</label><input id="c-deadline" v-model="conversion.deadline" type="date" required/></div></div>
+        <div class="form-row"><div class="field"><label for="c-value">Preço combinado (R$) · confirme ou ajuste</label><input id="c-value" v-model.number="conversion.value" type="number" min="0" step="0.01" required/></div><div class="field"><label for="c-deadline">Prazo</label><input id="c-deadline" v-model="conversion.deadline" type="date" required/></div></div>
         <div class="field"><label for="c-status">Status inicial</label><select id="c-status" v-model="conversion.status"><option value="planejado">Planejado</option><option value="andamento">Em andamento</option><option value="revisao">Em revisão</option><option value="entregue">Entregue</option></select></div>
         <p v-if="error" class="form-error" role="alert">{{ error }}</p><div class="modal-actions"><button type="button" class="btn btn-outline" @click="showConversion = false">Cancelar</button><button class="btn btn-dark" type="submit">Criar projeto</button></div>
       </form>
