@@ -288,3 +288,34 @@ tr[id^="lead-"]:target,article[id^="service-"]:target{outline:2px solid #aa99ea;
 .briefing-save-complete svg{flex:0 0 20px;color:#31865b}
 .briefing-save-complete b{color:#276747}
 .project-briefing-actions .row-actions:empty{display:none}
+
+/* Briefing finalizado: consulta de respostas, não formulário bloqueado. */
+.briefing-review{display:grid;gap:25px;padding:19px 0 4px}
+.briefing-review-overview{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:21px;background:#faf9fe;border:1px solid #eeeaf6;border-radius:13px}
+.briefing-review-intro{display:flex;align-items:flex-start;gap:14px;min-width:0}
+.briefing-review-intro svg{flex:0 0 26px;margin-top:2px}
+.briefing-review-success{color:#348d61}
+.briefing-review-pending{color:#8974c3}
+.briefing-review-intro h3{font-size:16px;color:#423d54;margin:0 0 7px}
+.briefing-review-intro p{font-size:12px;color:#716a81;line-height:1.65;margin:0 0 7px}
+.briefing-review-intro small{font-size:11px;color:#8e869a}
+.briefing-review-edit{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0}
+.briefing-review-sections{display:grid;gap:0}
+.briefing-review-section{padding:7px 0 24px;border-bottom:1px solid #eceaf3}
+.briefing-review-section+.briefing-review-section{padding-top:24px}
+.briefing-review-section:last-child{border-bottom:0;padding-bottom:2px}
+.briefing-review-section-head{display:flex;align-items:flex-start;gap:11px;margin-bottom:18px}
+.briefing-review-section-index{display:grid;place-items:center;flex:0 0 27px;height:27px;border-radius:8px;color:#765ac1;background:#f1ecfd;font-size:11px;font-weight:800}
+.briefing-review-section-head h4{font-size:14px;color:#474057;margin:4px 0 5px}
+.briefing-review-section-head p{font-size:11px;color:#8b8497;line-height:1.5;margin:0}
+.briefing-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px 28px;margin:0}
+.briefing-review-item{min-width:0}
+.briefing-review-item dt{font-size:11px;font-weight:750;color:#888094;margin-bottom:6px}
+.briefing-review-item dd{font-size:13px;color:#38354a;line-height:1.7;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.briefing-review-item dd.briefing-review-unanswered{font-size:12px;color:#aaa5b3;font-style:italic}
+@media(max-width:760px){
+  .briefing-review-overview{flex-direction:column;align-items:stretch;padding:17px}
+  .briefing-review-edit{align-self:flex-start}
+  .briefing-review-grid{grid-template-columns:1fr;gap:15px}
+}
+@media(max-width:460px){.briefing-review-edit{width:100%}.project-briefing-actions .row-actions{flex-wrap:wrap}.project-briefing-actions .row-actions .btn{width:100%}}
