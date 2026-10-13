@@ -17,6 +17,28 @@ export interface Lead {
   createdAt: string
 }
 
+export type ProposalStatus = 'rascunho' | 'enviada' | 'aceita' | 'recusada'
+export interface ProposalRevision {
+  id: string
+  number: number
+  createdAt: string
+  serviceName: string
+  scope: string
+  exclusions: string
+  price: number
+  deliveryTerms: string
+  revisionRounds: number
+  paymentTerms: string
+  notes: string
+  status: ProposalStatus
+  sentAt: string | null
+}
+export interface LeadProposal {
+  id: string
+  leadId: string
+  revisions: ProposalRevision[]
+}
+
 export interface Project {
   id: string
   name: string
@@ -110,7 +132,7 @@ export interface ProjectBriefing {
 }
 
 export interface Workspace {
-  schemaVersion: 6
+  schemaVersion: 7
   leads: Lead[]
   projects: Project[]
   transactions: Transaction[]
@@ -123,5 +145,6 @@ export interface Workspace {
   projectMaterials: ProjectMaterial[]
   projectInstallments: ProjectInstallment[]
   projectDeliveries: ProjectDelivery[]
+  leadProposals: LeadProposal[]
   legacyBriefing: BriefingQuestion[]
 }
