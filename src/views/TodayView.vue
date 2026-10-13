@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { ArrowRight, CalendarClock, CheckCircle2, ClipboardList, FolderKanban, ListTodo, RefreshCcw, UsersRound, Wallet } from 'lucide-vue-next'
+import { ArrowRight, CalendarClock, CheckCircle2, ClipboardList, ListTodo, RefreshCcw, UsersRound, Wallet } from 'lucide-vue-next'
 import { state } from '../lib/store'
 import { todayLocal } from '../lib/format'
 import { buildTodayActions, type TodayAction, type TodayPriority, type TodayProjectTab } from '../lib/todayActions'
