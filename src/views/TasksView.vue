@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle2, ListTodo, Pencil, Plus, Trash2 } from 'lucide
 import { state, addTask, persistenceError, removeItem, updateTask } from '../lib/store'
 import type { Task } from '../lib/types'
 
+import { confirmAction } from '../lib/confirmation'
 const emit = defineEmits<{ openProject: [id: string] }>()
 const editingId = ref<string | null>(null)
 const showEdit = ref(false)
@@ -37,7 +38,7 @@ function toggle(task: Task, done: boolean) {
   try { updateTask(task.id, { title: task.title, done, projectId: task.projectId }); feedback.value = persistenceError.value || 'Status da tarefa atualizado.' }
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'Não foi possível atualizar a tarefa.' }
 }
-function drop(id: string) { if (confirm('Excluir esta tarefa?')) removeItem('tasks', id) }
+async function drop(id: string) { if (await confirmAction({ title: 'Excluir tarefa?', message: 'Esta tarefa será removida da lista.', confirmLabel: 'Excluir tarefa', tone: 'danger' })) removeItem('tasks', id) }
 </script>
 
 <template>
