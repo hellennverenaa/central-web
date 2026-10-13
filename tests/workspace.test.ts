@@ -289,3 +289,68 @@ test('links de projetos permanecem no backup v5 e referências inválidas são r
   duplicated.projectMaterials.push({ ...duplicated.projectMaterials[0] })
   assert.throws(() => migrateWorkspace(duplicated), /Backup inválido/)
 })
+
+test('atendimento fechado personaliza briefing sem modificar o modelo de serviço', () => {
+  const workspace = createInitialWorkspace()
+  const service = workspace.services.find(item => item.id === 'service-02')!
+  const alternative = workspace.briefingTemplates.find(item => item.id === 'brief-template-business')!
+  workspace.leads.push({
+    id: 'lead-guided', name: 'Negócio fictício', contact: '', service: service.name,
+    serviceId: service.id, convertedProjectId: null, stage: 'conversa', value: 450,
+    notes: 'Escopo inicial', createdAt: '2026-10-01T00:00:00.000Z',
+  })
+  const project = convertOpportunityToProject(workspace, 'lead-guided', {
+    name: 'Projeto do atendimento guiado', client: 'Negócio fictício',
+    status: 'planejado', deadline: '2026-11-10', value: 400,
+    briefingTemplateId: alternative.id,
+  }, 'project-guided', '2026-10-02T00:00:00.000Z')
+  const linked = workspace.projectBriefings.find(item => item.id === project.briefingId)!
+  assert.equal(project.value, 400)
+  assert.equal(workspace.leads[0].value, 450)
+  assert.equal(workspace.leads[0].stage, 'ganho')
+  assert.equal(linked.templateId, alternative.id)
+  assert.notEqual(linked.sections, alternative.sections)
+  assert.deepEqual(workspace.tasks.filter(task => task.projectId === project.id).map(task => task.title), service.taskTemplates)
+  assert.equal(workspace.transactions.filter(item => item.projectId === project.id).length, 0)
+  assert.throws(() => convertOpportunityToProject(workspace, 'lead-guided', {
+    name: 'Duplicado', client: 'Negócio fictício', status: 'planejado',
+    deadline: '2026-11-10', value: 400, briefingTemplateId: alternative.id,
+  }, 'project-guided-copy'), /já foi convertida/)
+  assert.equal(workspace.projects.filter(item => item.sourceLeadId === 'lead-guided').length, 1)
+  assert.equal(workspace.projectBriefings.filter(item => item.projectId === project.id).length, 1)
+  assert.equal(workspace.tasks.filter(task => task.projectId === project.id).length, service.taskTemplates.length)
+})
+
+test('serviço ainda não definido gera apenas tarefas genéricas e briefing geral', () => {
+  const workspace = createInitialWorkspace()
+  workspace.leads.push({
+    id: 'lead-undecided', name: 'Atendimento fictício', contact: '', service: 'A definir',
+    serviceId: null, convertedProjectId: null, stage: 'conversa', value: 0,
+    notes: '', createdAt: '2026-10-01T00:00:00.000Z',
+  })
+  const project = convertOpportunityToProject(workspace, 'lead-undecided', {
+    name: 'Projeto personalizado', client: 'Atendimento fictício',
+    status: 'planejado', deadline: '2026-11-10', value: 0,
+  }, 'project-undecided', '2026-10-02T00:00:00.000Z')
+  assert.equal(project.serviceId, null)
+  assert.equal(workspace.projectBriefings.find(item => item.id === project.briefingId)?.templateId, 'brief-template-general')
+  assert.equal(workspace.tasks.filter(item => item.projectId === project.id).length, 3)
+  assert.equal(workspace.leads[0].stage, 'ganho')
+})
+
+test('modelo de briefing inexistente não cria registros parciais nem converte oportunidade', () => {
+  const workspace = createInitialWorkspace()
+  workspace.leads.push({
+    id: 'lead-missing-template', name: 'Atendimento fictício', contact: '', service: 'A definir',
+    serviceId: null, convertedProjectId: null, stage: 'proposta', value: 0,
+    notes: '', createdAt: '2026-10-01T00:00:00.000Z',
+  })
+  assert.throws(() => convertOpportunityToProject(workspace, 'lead-missing-template', {
+    name: 'Projeto', client: 'Atendimento fictício', status: 'planejado',
+    deadline: '2026-11-10', value: 0, briefingTemplateId: 'inexistente',
+  }, 'project-invalid'), /não existe mais/)
+  assert.equal(workspace.leads[0].convertedProjectId, null)
+  assert.equal(workspace.projects.length, 0)
+  assert.equal(workspace.projectBriefings.length, 0)
+  assert.equal(workspace.tasks.length, 0)
+})
