@@ -45,6 +45,10 @@ function submit() {
   const selectedService = state.services.find(service => service.id === form.serviceId)
   const serviceName = selectedService?.name ?? form.service.trim()
   if (!name || !serviceName) { error.value = 'Informe o nome e o serviço de interesse.'; return }
+  if (form.stage === 'ganho' && !state.leads.find(item => item.id === editingId.value)?.convertedProjectId) {
+    error.value = 'Para marcar como ganho, converta a oportunidade em projeto pelo assistente ou pelo botão de conversão.'
+    return
+  }
   try {
     const input = { name, contact: form.contact.trim(), service: serviceName, serviceId: selectedService?.id ?? null, stage: form.stage, value: Number(form.value), notes: form.notes.trim() }
     if (!Number.isFinite(input.value) || input.value < 0) throw new Error('A estimativa deve ser um valor igual ou maior que zero.')
@@ -104,7 +108,7 @@ watch(() => props.focusLeadId, jumpToLead, { immediate: true })
             <td><div class="client-cell"><div class="initial-avatar">{{ lead.name[0]?.toUpperCase() }}</div><div><strong>{{ lead.name }}</strong><small>{{ lead.contact || 'Sem contato informado' }}</small></div></div></td>
             <td><button v-if="lead.serviceId" class="table-link" :aria-label="`Ver modelo do serviço ${lead.service}`" title="Ver modelo do serviço" @click="emit('openService', lead.serviceId, lead.id)">{{ state.services.find(service => service.id === lead.serviceId)?.name ?? lead.service }} <small class="model-link-hint">Ver modelo do serviço</small><ArrowRight :size="13"/></button><span v-else>{{ lead.service }}</span></td>
             <td class="strong">{{ brl(lead.value) }}</td>
-            <td><select v-model="lead.stage" class="status-select" :class="lead.stage" :aria-label="`Etapa de ${lead.name}`" @change="announceStageSaved"><option v-for="stage in stages" :key="stage" :value="stage">{{ leadLabels[stage] }}</option></select></td>
+            <td><select v-model="lead.stage" class="status-select" :class="lead.stage"  :aria-label="`Etapa de ${lead.name}`" :disabled="Boolean(lead.convertedProjectId)" @change="announceStageSaved"><option v-for="stage in stages" :key="stage" :value="stage" :disabled="stage === 'ganho' && !lead.convertedProjectId">{{ leadLabels[stage] }}</option></select></td>
             <td><div class="row-actions">
               <a v-if="whatsappHref(lead.contact)" :href="whatsappHref(lead.contact) || '#'" target="_blank" rel="noopener noreferrer" class="icon-button" :aria-label="`Conversar com ${lead.name} no WhatsApp`"><MessageCircle :size="17"/></a>
               <button v-if="lead.convertedProjectId" class="icon-button" :aria-label="`Abrir projeto de ${lead.name}`" title="Abrir projeto" @click="openLinkedProject(lead)"><FolderKanban :size="16"/></button>
@@ -123,7 +127,7 @@ watch(() => props.focusLeadId, jumpToLead, { immediate: true })
         <div class="field"><label for="l-contact">Contato</label><input id="l-contact" v-model="form.contact" maxlength="100" placeholder="Contato de trabalho (opcional)"/></div>
         <div class="field"><label for="l-service-id">Serviço do catálogo</label><select id="l-service-id" v-model="form.serviceId"><option value="">Serviço fora do catálogo</option><option v-for="service in state.services" :key="service.id" :value="service.id">{{ service.name }}</option></select></div>
         <div v-if="!form.serviceId" class="field"><label for="l-service">Serviço de interesse *</label><input id="l-service" v-model="form.service" maxlength="120" required placeholder="Descreva o serviço"/></div>
-        <div class="form-row"><div class="field"><label for="l-stage">Etapa</label><select id="l-stage" v-model="form.stage"><option v-for="stage in stages" :key="stage" :value="stage">{{ leadLabels[stage] }}</option></select></div><div class="field"><label for="l-value">Valor estimado (R$)</label><input id="l-value" v-model.number="form.value" type="number" min="0" step="0.01" required/></div></div>
+        <div class="form-row"><div class="field"><label for="l-stage">Etapa</label><select id="l-stage" v-model="form.stage" :disabled="Boolean(editingId && state.leads.find(item => item.id === editingId)?.convertedProjectId)"><option v-for="stage in stages" :key="stage" :value="stage" :disabled="stage === 'ganho' && !state.leads.find(item => item.id === editingId)?.convertedProjectId">{{ leadLabels[stage] }}</option></select><small>Uma oportunidade só fica como ganha após ser convertida em projeto.</small></div><div class="field"><label for="l-value">Valor estimado (R$)</label><input id="l-value" v-model.number="form.value" type="number" min="0" step="0.01" required/></div></div>
         <div class="field"><label for="l-notes">Observações</label><textarea id="l-notes" v-model="form.notes" rows="3" maxlength="1000"/></div>
         <p v-if="error" class="form-error" role="alert">{{ error }}</p><p class="form-hint">A estimativa fica no pipeline; converter não define o valor contratado nem registra recebimento.</p>
         <div class="modal-actions"><button type="button" class="btn btn-outline" @click="showForm = false">Cancelar</button><button class="btn btn-dark" type="submit">{{ editingId ? 'Salvar alterações' : 'Salvar oportunidade' }}</button></div>
