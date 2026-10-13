@@ -532,7 +532,10 @@ export const initialBriefingTemplates: BriefingTemplate[] = [
       ] },
       { id: 'event-guests', title: 'Convidados e confirmação', description: 'Perguntas extras aparecem conforme as escolhas do cliente.', questions: [
         question('event-rsvp', 'Precisa confirmar presença?', 'yes-no', '', true),
-        question('event-rsvp-link', 'Qual link ou contato será usado para confirmar?', 'url', 'Link do formulário ou WhatsApp', true, [], { questionId: 'event-rsvp', operator: 'equals', value: 'Sim' }),
+        question('event-rsvp-method', 'Como será feita a confirmação de presença?', 'single-choice', 'Escolha a opção prevista, mesmo que os detalhes ainda não estejam definidos', true, ['No próprio convite', 'Em uma planilha', 'Pelo WhatsApp', 'Por formulário ou link externo', 'Ainda não definido'], { questionId: 'event-rsvp', operator: 'equals', value: 'Sim' }),
+        question('event-rsvp-sheet', 'Link da planilha, se já existir', 'url', 'Pode ser informado depois', false, [], { questionId: 'event-rsvp-method', operator: 'equals', value: 'Em uma planilha' }),
+        question('event-rsvp-whatsapp', 'Qual WhatsApp receberá as confirmações?', 'short-text', 'Número com DDD, se definido', false, [], { questionId: 'event-rsvp-method', operator: 'equals', value: 'Pelo WhatsApp' }),
+        question('event-rsvp-link', 'Qual é o link do formulário externo?', 'url', 'https://...', true, [], { questionId: 'event-rsvp-method', operator: 'equals', value: 'Por formulário ou link externo' }),
         question('event-dress-code', 'Há traje ou orientação para convidados?', 'long-text', 'Ex.: traje esporte fino'),
       ] },
       { id: 'event-style', title: 'Conteúdo e visual', description: 'Materiais para definir a direção visual e preparar a primeira versão.', questions: [
