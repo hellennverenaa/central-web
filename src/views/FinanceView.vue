@@ -5,6 +5,7 @@ import { state, metrics, addTransaction, persistenceError, removeItem, updateTra
 import { brl, dateBR, todayLocal } from '../lib/format'
 import type { Transaction, TransactionType } from '../lib/types'
 
+import { confirmAction } from '../lib/confirmation'
 const emit = defineEmits<{ openProject: [id: string] }>()
 const showForm = ref(false)
 const editingId = ref<string | null>(null)
@@ -26,7 +27,7 @@ function submit() {
     reset()
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'Não foi possível salvar o lançamento.' }
 }
-function drop(id: string) { if (confirm('Excluir este lançamento?')) removeItem('transactions', id) }
+async function drop(id: string) { if (await confirmAction({ title: 'Excluir lançamento financeiro?', message: 'O lançamento será removido do caixa e os totais serão recalculados.', confirmLabel: 'Excluir lançamento', tone: 'danger' })) removeItem('transactions', id) }
 </script>
 
 <template>
