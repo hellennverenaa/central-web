@@ -1,9 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { addProject, addProjectMaterial, addProjectInstallment, addTask, addTransaction, clearAll, removeItem, removeProjectMaterial, saveProjectDelivery, state, updateProjectBriefing, updateProjectMaterial, updateProjectInstallment, updateTransaction } from '../src/lib/store.ts'
+import { addLead, markLeadProposal, saveLeadProposal, addProject, addProjectMaterial, addProjectInstallment, addTask, addTransaction, clearAll, removeItem, removeProjectMaterial, saveProjectDelivery, state, updateProjectBriefing, updateProjectMaterial, updateProjectInstallment, updateTransaction } from '../src/lib/store.ts'
 import { readWorkspace, writeWorkspace, WORKSPACE_STORAGE_KEY, type StoragePort } from '../src/lib/workspace.ts'
 
 import { installmentReceived, installmentBalance } from '../src/lib/projectMilestones.ts'
+import { acceptedPrice, latestRevision, proposalFromLead, proposalText } from '../src/lib/proposals.ts'
 
 class MemoryStorage implements StoragePort {
   values = new Map<string, string>()
@@ -31,7 +32,7 @@ test('projeto copia tarefas e questionário do serviço e persiste respostas e l
   const storage = new MemoryStorage()
   writeWorkspace(state, storage)
   const reopened = readWorkspace(storage).workspace
-  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 6)
+  assert.equal(JSON.parse(storage.getItem(WORKSPACE_STORAGE_KEY) || '{}').schemaVersion, 7)
   assert.equal(reopened.projectBriefings.find(item => item.projectId === project.id)?.answers['business-name'], 'Cliente de exemplo')
   assert.equal(reopened.tasks.filter(task => task.projectId === project.id).length, service.taskTemplates.length + 1)
   assert.equal(reopened.tasks.find(task => task.title === 'Revisar calendário')?.projectId, null)
@@ -114,4 +115,56 @@ test('revisão, aprovação e entrega preservam datas explícitas e não geram r
   removeItem('projects', project.id)
   assert.deepEqual(state.projectDeliveries, [])
   assert.deepEqual(state.projectInstallments, [])
+})
+
+test('proposta acompanha orçamento enviado, aceite e histórico sem registrar dinheiro nem criar projeto', () => {
+  clearAll()
+  const service = state.services[0]!
+  const lead = addLead({ name: 'Empresa fictícia', contact: '', service: service.name,
+    serviceId: service.id, stage: 'conversa', value: 650, notes: '' })
+  const input = proposalFromLead(lead, service)
+  assert.equal(input.price, 650)
+  const proposal = saveLeadProposal(lead.id, { ...input, scope: 'Convite interativo',
+    deliveryTerms: '15 dias úteis após materiais', paymentTerms: '50% no início', revisionRounds: 2 })
+  assert.equal(proposal.revisions.length, 1)
+  assert.equal(latestRevision(proposal)?.status, 'rascunho')
+  assert.equal(state.transactions.length, 0)
+  assert.equal(state.projects.length, 0)
+  saveLeadProposal(lead.id, { ...input, scope: 'Novo texto do rascunho',
+    deliveryTerms: '15 dias úteis após materiais', paymentTerms: '50% no início', revisionRounds: 2 })
+  assert.equal(proposal.revisions.length, 1)
+  markLeadProposal(lead.id, 'enviada')
+  assert.equal(state.leads.find(item => item.id === lead.id)?.stage, 'proposta')
+  assert.equal(latestRevision(proposal)?.status, 'enviada')
+  assert.throws(() => markLeadProposal(lead.id, 'enviada'), /Somente/)
+  const firstRevision = structuredClone(proposal.revisions[0]!)
+  const next = saveLeadProposal(lead.id, { ...input, price: 500, scope: 'Entrega ajustada',
+    deliveryTerms: '12 dias úteis', paymentTerms: '50% na assinatura', revisionRounds: 1 })
+  assert.equal(next.revisions.length, 2)
+  assert.deepEqual(next.revisions[0], firstRevision)
+  assert.equal(latestRevision(next)?.number, 2)
+  assert.equal(acceptedPrice(next), null)
+  assert.throws(() => markLeadProposal(lead.id, 'aceita'), /Somente/)
+  markLeadProposal(lead.id, 'enviada')
+  markLeadProposal(lead.id, 'aceita')
+  assert.equal(acceptedPrice(next), 500)
+  assert.equal(state.projects.length, 0)
+  assert.equal(state.transactions.length, 0)
+  assert.match(proposalText(lead.name, latestRevision(next)!), /Entrega ajustada/)
+  assert.throws(() => saveLeadProposal(lead.id, input), /aceita/)
+  const storage = new MemoryStorage()
+  writeWorkspace(state, storage)
+  assert.deepEqual(readWorkspace(storage).workspace.leadProposals, state.leadProposals)
+  removeItem('leads', lead.id)
+  assert.deepEqual(state.leadProposals, [])
+})
+
+test('proposta não pode ser enviada incompleta nem vinculada a oportunidade inexistente', () => {
+  clearAll()
+  const lead = addLead({ name: 'Cliente de teste', contact: '', service: 'A definir', serviceId: null,
+    stage: 'novo', value: 0, notes: '' })
+  assert.throws(() => saveLeadProposal('missing', proposalFromLead(lead, null)), /não foi encontrada/)
+  saveLeadProposal(lead.id, { ...proposalFromLead(lead, null), serviceName: 'Site simples' })
+  assert.throws(() => markLeadProposal(lead.id, 'enviada'), /escopo|valor|prazo|condições/i)
+  assert.equal(state.leads[0]?.stage, 'novo')
 })
