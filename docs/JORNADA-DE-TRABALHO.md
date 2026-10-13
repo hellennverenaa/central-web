@@ -1,6 +1,6 @@
 # Jornada de trabalho simplificada — proposta de UX
 
-> Documento de produto. As etapas 1–3 do fluxo local já incluem menu agrupado, detalhes de projeto, assistente de atendimento, criação de oportunidades e conversão com geração de briefing e tarefas. Automação de propostas formais, cobranças previstas e API segura permanece planejada.
+> Documento de produto. As etapas 1–4 do fluxo local já incluem menu agrupado, detalhes de projeto, assistente de atendimento, conversão com briefing/tarefas e visão Hoje derivada dos registros. Automação de propostas formais, cobranças previstas e API segura permanece planejada.
 
 ## Objetivo
 
@@ -79,6 +79,9 @@ Os modelos de serviço e de questionário só devem ser alterados quando o produ
 
 1. Corrigir os problemas apontados no PR original: `ganho` sem conversão, condições encadeadas do briefing e testes de UI.
 2. [x] Implementar o **assistente de atendimento** (não somente o botão), com confirmação de transições e reaproveitamento dos dados.
-3. Criar **visão Hoje** com próximas ações derivadas de projetos, evitando status manual redundante.
+3. [x] Criar **visão Hoje** com próximas ações derivadas de projetos, oportunidades, briefings, tarefas e prazo cadastrado, evitando status manual redundante.
+   - Exibe no máximo uma ação principal por projeto; ações críticas de prazo têm prioridade.
+   - Abre a aba correspondente no projeto, retoma a oportunidade ou leva às tarefas independentes.
+   - Um saldo a receber **não tem vencimento inferido**, e nenhuma ação gera lançamentos financeiros automáticos.
 4. Adicionar etapas de cobrança prevista e revisão/entrega, sem lançar receita antes da confirmação.
 5. Migrar persistência para API segura e TypeORM/PostgreSQL **após** validar a jornada no frontend.
