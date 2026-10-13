@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { CheckCircle2, ClipboardCopy, FileText, Pencil, Plus, X } from 'lucide-vue-next'
 import { markLeadProposal, persistenceError, saveLeadProposal, state } from '../lib/store'
+import { confirmAction } from '../lib/confirmation'
 import { latestRevision, proposalFromLead, proposalStatusLabel, proposalText, type ProposalInput } from '../lib/proposals'
 import { brl } from '../lib/format'
 import type { ProposalRevision } from '../lib/types'
@@ -33,8 +34,8 @@ fillForm(current.value ?? (lead.value ? proposalFromLead(lead.value, model.value
   serviceName: '', scope: '', exclusions: '', price: 0, deliveryTerms: '', revisionRounds: 0, paymentTerms: '', notes: '',
 }))
 const unsaved = computed(() => editing.value && JSON.stringify(form) !== baseline.value)
-function close() {
-  if (unsaved.value && !confirm('Descartar alterações ainda não salvas na proposta?')) return
+async function close() {
+  if (unsaved.value && !(await confirmAction({ title: 'Descartar alterações?', message: 'As modificações que você fez na proposta ainda não foram salvas.', confirmLabel: 'Descartar alterações', tone: 'danger' }))) return
   emit('close')
 }
 function editDraft() {
@@ -51,8 +52,8 @@ function startRevision() {
   error.value = ''
   notice.value = ''
 }
-function cancelEdit() {
-  if (unsaved.value && !confirm('Descartar edições do orçamento?')) return
+async function cancelEdit() {
+  if (unsaved.value && !(await confirmAction({ title: 'Descartar edição do orçamento?', message: 'As mudanças não salvas serão perdidas. A versão anterior continuará disponível.', confirmLabel: 'Descartar edição', tone: 'danger' }))) return
   if (!proposal.value) { emit('close'); return }
   editing.value = false
   error.value = ''
@@ -73,13 +74,18 @@ function save() {
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'Não foi possível salvar a proposta.' }
   finally { busy.value = false }
 }
-function mark(status: 'enviada' | 'aceita' | 'recusada') {
+async function mark(status: 'enviada' | 'aceita' | 'recusada') {
   if (!lead.value) return
   const message = status === 'enviada'
     ? 'Você já enviou esta versão para o cliente? Essa ação apenas registra o envio; a Central não envia mensagens.'
     : status === 'aceita' ? 'O cliente confirmou que aceita esta versão? Isso não cria projeto nem registra pagamento.'
       : 'Registrar que o cliente recusou esta versão da proposta?'
-  if (!confirm(message)) return
+  if (!(await confirmAction({
+    title: status === 'enviada' ? 'Registrar envio da proposta?' : status === 'aceita' ? 'Confirmar aceite do cliente?' : 'Registrar recusa da proposta?',
+    message,
+    confirmLabel: status === 'enviada' ? 'Registrar envio' : status === 'aceita' ? 'Registrar aceite' : 'Registrar recusa',
+    tone: status === 'recusada' ? 'danger' : 'primary',
+  }))) return
   error.value = ''
   try {
     markLeadProposal(props.leadId, status)
