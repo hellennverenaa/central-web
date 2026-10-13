@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import ProjectInstallmentsView from './ProjectInstallmentsView.vue'
+import ProjectDeliveryView from './ProjectDeliveryView.vue'
 import { ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, ClipboardList, FolderKanban, Link2, ExternalLink, Pencil, Plus, Trash2, Wallet } from 'lucide-vue-next'
 import { state, addProjectMaterial, addTask, addTransaction, persistenceError, removeItem, removeProjectMaterial, updateProjectMaterial, updateProject, updateProjectBriefing, updateTask, updateTransaction } from '../lib/store'
 import { brl, dateBR, projectLabels, todayLocal } from '../lib/format'
@@ -56,7 +58,7 @@ const editingTaskId = ref<string | null>(null)
 const editingTransactionId = ref<string | null>(null)
 const error = ref('')
 const feedback = ref('')
-const abaAtiva = ref<'resumo' | 'briefing' | 'tarefas' | 'materiais' | 'financeiro'>('resumo')
+const abaAtiva = ref<'resumo' | 'briefing' | 'tarefas' | 'materiais' | 'financeiro' | 'entrega'>('resumo')
 const secaoBriefingAtiva = ref('')
 const tarefasPendentes = computed(() => tasks.value.filter(task => !task.done).length)
 const valorAReceber = computed(() => Math.max(0, (project.value?.value ?? 0) - received.value))
@@ -276,6 +278,7 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
       <button class="project-tab" :class="{ ativo: abaAtiva === 'tarefas' }" :aria-current="abaAtiva === 'tarefas' ? 'page' : undefined" @click="abaAtiva = 'tarefas'">Tarefas <span>{{ tarefasPendentes }} pendentes</span></button>
       <button class="project-tab" :class="{ ativo: abaAtiva === 'materiais' }" :aria-current="abaAtiva === 'materiais' ? 'page' : undefined" @click="abaAtiva = 'materiais'">Materiais <span>{{ materials.length }}</span></button>
       <button class="project-tab" :class="{ ativo: abaAtiva === 'financeiro' }" :aria-current="abaAtiva === 'financeiro' ? 'page' : undefined" @click="abaAtiva = 'financeiro'">Financeiro</button>
+      <button class="project-tab" :class="{ ativo: abaAtiva === 'entrega' }" :aria-current="abaAtiva === 'entrega' ? 'page' : undefined" @click="abaAtiva = 'entrega'">Entrega</button>
     </nav>
 
     <section v-if="abaAtiva === 'resumo'" class="project-overview" aria-label="Resumo e próximos passos">
@@ -370,6 +373,9 @@ function dropTransaction(id: string) { if (confirm('Excluir este lançamento?'))
       </div>
       <div v-else class="empty compact"><Link2 :size="25"/><b>Nenhum link cadastrado neste projeto</b><p>Adicione um questionário, pasta, referência ou link de entrega para encontrá-lo facilmente depois.</p><button type="button" class="btn btn-outline" @click="createMaterial">Adicionar primeiro link</button></div>
     </section>
+
+    <ProjectDeliveryView v-if="abaAtiva === 'entrega'" :project-id="props.projectId"/>
+    <ProjectInstallmentsView v-if="abaAtiva === 'financeiro'" :project-id="props.projectId"/>
 
     <div v-if="abaAtiva === 'tarefas' || abaAtiva === 'financeiro'" class="detail-grid project-tab-content">
       <section v-if="abaAtiva === 'tarefas'" class="surface detail-section"><div class="section-top"><div><p class="section-kicker">PRODUÇÃO</p><h2>Tarefas</h2></div><button class="btn btn-outline btn-slim" @click="createTask"><Plus :size="15"/> Nova tarefa</button></div>
