@@ -1,6 +1,6 @@
 # Jornada de trabalho simplificada — proposta de UX
 
-> Documento de produto. A implementação inicial desta branch cobre **menu agrupado**, botão de novo atendimento e **abas de projetos**. As automações mais profundas descritas abaixo são planejamento para sprints seguintes.
+> Documento de produto. As etapas 1–3 do fluxo local já incluem menu agrupado, detalhes de projeto, assistente de atendimento, criação de oportunidades e conversão com geração de briefing e tarefas. Automação de propostas formais, cobranças previstas e API segura permanece planejada.
 
 ## Objetivo
 
@@ -15,8 +15,8 @@ A Central Web deve **diminuir trabalho administrativo**, não reproduzir várias
 **Usar os dois, com objetivos diferentes:**
 
 - Navegação lateral para **consultar**, **encontrar** e **editar** informações, agrupada por áreas.
-- Ação principal **Novo atendimento**, que inicia o cadastro de uma oportunidade. Na versão atual, ela abre diretamente o formulário existente; não é ainda um assistente completo.
-- Futuro atendimento guiado: informar cliente uma só vez; selecionar serviço; ver referência e escopo; registrar proposta; confirmar fechamento; preparar projeto, briefing e checklist automaticamente.
+- Ação principal **Novo atendimento**, que abre um assistente guiado com cliente, serviço, proposta e decisão comercial, sem exigir contrato fechado.
+- Atendimento guiado: informar cliente uma só vez; selecionar serviço (inclusive indefinido ou personalizado); consultar referência e escopo; registrar proposta; confirmar fechamento; preparar projeto, briefing e checklist automaticamente. Oportunidades existentes podem ser retomadas no assistente.
 - Oferecer também **Novo projeto direto** para contratos fechados fora do CRM.
 - Ao entrar no projeto, mostrar **Resumo e próxima ação**, com seções independentes de Briefing, Tarefas e Financeiro.
 
@@ -78,7 +78,7 @@ Os modelos de serviço e de questionário só devem ser alterados quando o produ
 ## Próximos incrementos
 
 1. Corrigir os problemas apontados no PR original: `ganho` sem conversão, condições encadeadas do briefing e testes de UI.
-2. Implementar o **assistente de atendimento** (não somente o botão), com confirmação de transições.
+2. [x] Implementar o **assistente de atendimento** (não somente o botão), com confirmação de transições e reaproveitamento dos dados.
 3. Criar **visão Hoje** com próximas ações derivadas de projetos, evitando status manual redundante.
 4. Adicionar etapas de cobrança prevista e revisão/entrega, sem lançar receita antes da confirmação.
 5. Migrar persistência para API segura e TypeORM/PostgreSQL **após** validar a jornada no frontend.
