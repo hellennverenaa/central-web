@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { ArrowRight, FolderKanban, MessageCircle, Pencil, Plus, Search, Trash2, UsersRound } from 'lucide-vue-next'
+import { ArrowRight, FolderKanban, MessageCircle, Pencil, Plus, Search, Trash2, UsersRound, ListChecks } from 'lucide-vue-next'
 import { state, addLead, convertLeadToProject, persistenceError, removeItem, updateLead } from '../lib/store'
 import { brl, leadLabels, todayLocal, whatsappHref } from '../lib/format'
 import { initialConversionPrice, serviceSuggestion } from '../lib/pricing'
 import type { Lead, LeadStage, ProjectStatus } from '../lib/types'
 
 const props = defineProps<{ focusLeadId?: string | null }>()
-const emit = defineEmits<{ openProject: [id: string, notice?: string]; openService: [id: string, leadId: string] }>()
+const emit = defineEmits<{ openProject: [id: string, notice?: string]; openService: [id: string, leadId: string]; resumeAttendance: [id: string] }>()
 const stages: LeadStage[] = ['novo', 'conversa', 'proposta', 'ganho', 'perdido']
 const showForm = ref(false)
 const showConversion = ref(false)
@@ -108,7 +108,7 @@ watch(() => props.focusLeadId, jumpToLead, { immediate: true })
             <td><div class="row-actions">
               <a v-if="whatsappHref(lead.contact)" :href="whatsappHref(lead.contact) || '#'" target="_blank" rel="noopener noreferrer" class="icon-button" :aria-label="`Conversar com ${lead.name} no WhatsApp`"><MessageCircle :size="17"/></a>
               <button v-if="lead.convertedProjectId" class="icon-button" :aria-label="`Abrir projeto de ${lead.name}`" title="Abrir projeto" @click="openLinkedProject(lead)"><FolderKanban :size="16"/></button>
-              <button v-else class="icon-button" :aria-label="`Converter ${lead.name} em projeto`" title="Converter em projeto" @click="beginConversion(lead)"><ArrowRight :size="16"/></button>
+              <template v-else><button class="icon-button" :aria-label="`Retomar atendimento de ${lead.name}`" title="Retomar no assistente" @click="emit('resumeAttendance', lead.id)"><ListChecks :size="16"/></button><button class="icon-button" :aria-label="`Converter ${lead.name} em projeto`" title="Converter rapidamente em projeto" @click="beginConversion(lead)"><ArrowRight :size="16"/></button></template>
               <button class="icon-button" :aria-label="`Editar ${lead.name}`" @click="edit(lead)"><Pencil :size="16"/></button>
               <button class="icon-button danger" :aria-label="`Excluir ${lead.name}`" @click="drop(lead.id)"><Trash2 :size="16"/></button>
             </div></td>
