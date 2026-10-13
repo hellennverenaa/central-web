@@ -1,6 +1,6 @@
 # Jornada de trabalho simplificada — proposta de UX
 
-> Documento de produto. As etapas 1–4 do fluxo local já incluem menu agrupado, detalhes de projeto, assistente de atendimento, conversão com briefing/tarefas e visão Hoje derivada dos registros. Propostas formais e API segura permanecem planejadas; parcelas previstas e revisão/entrega já têm registros locais explícitos.
+> Documento de produto. As etapas 1–4 do fluxo local já incluem menu agrupado, detalhes de projeto, assistente de atendimento, conversão com briefing/tarefas e visão Hoje derivada dos registros. Propostas comerciais versionadas, parcelas previstas e revisão/entrega já têm registros locais explícitos. Distribuição automatizada, assinaturas e API segura permanecem planejadas.
 
 ## Objetivo
 
@@ -46,7 +46,7 @@ Os modelos de serviço e de questionário só devem ser alterados quando o produ
 ## Automação planejada: máquina de estados por atendimento/projeto
 
 1. **Novo contato:** capturar nome/contato, tipo de serviço e necessidade. Se ainda não souber preço, deixá-lo pendente.
-2. **Proposta:** estimar valores a partir do serviço e do briefing inicial; usuária aprova valor final e escopo.
+2. **Proposta:** gerar rascunho a partir do serviço e da estimativa, revisar escopo, exclusões, rodadas, condições de pagamento e entrega; registrar o envio manual e preservar versões anteriores imutáveis. Registrar aceite não converte nem cria recebimento.
 3. **Fechamento:** ação única e idempotente cria projeto associado à oportunidade; não registrar receita fictícia.
 4. **Preparação:** criar **uma** instância do questionário e as tarefas do modelo; reutilizar todos os dados conhecidos sem perguntar novamente.
 5. **Produção:** destacar a próxima tarefa não concluída ou o próximo campo relevante do briefing; não depender de navegar à tela global.
@@ -54,6 +54,10 @@ Os modelos de serviço e de questionário só devem ser alterados quando o produ
 7. **Entrega:** verificar checklist, registrar aprovação e finalizar o projeto.
 
 ## Regras de produto
+
+- Na lista de Oportunidades, a ação **Proposta** abre um documento de consulta ou um formulário de rascunho; depois de salvar, a proposta é visualizada como documento com opção de editar (rascunho) ou criar nova versão (após envio).
+- O status de uma proposta é registrado manualmente. Enviar/clicar em Aceita não faz contato remoto, não gera contrato ou pagamento, não muda o preço de projeto existente.
+
 
 - **Automatizar vínculo por IDs**, não por nomes.
 - **Nunca inventar dados ou cobranças.** O sistema pode sugerir, mas valores, prazos e recebimentos precisam de confirmação explícita.
