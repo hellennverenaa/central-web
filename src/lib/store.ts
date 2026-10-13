@@ -1,9 +1,10 @@
 import { computed, reactive, ref, watch } from 'vue'
-import type { BriefingAnswer, BriefingQuestion, BriefingTemplate, Lead, PlanItem, Project, Publication, ProjectBriefing, ProjectMaterial, ProjectInstallment, ProjectDelivery, Service, Task, Transaction, Workspace } from './types'
+import type { BriefingAnswer, BriefingQuestion, BriefingTemplate, Lead, LeadProposal, ProposalRevision, ProposalStatus, PlanItem, Project, Publication, ProjectBriefing, ProjectMaterial, ProjectInstallment, ProjectDelivery, Service, Task, Transaction, Workspace } from './types'
 import { todayLocal } from './format.ts'
 import { validateBriefingTemplate } from './briefing.ts'
 import { safeProjectMaterialUrl, validateProjectMaterial, type ProjectMaterialInput } from './projectMaterials.ts'
 import { validateInstallment, validateDelivery, type InstallmentInput, type DeliveryInput } from './projectMilestones.ts'
+import { latestRevision, validateProposalDraft, validateProposalForSending, type ProposalInput } from './proposals.ts'
 import { convertOpportunityToProject, createInitialWorkspace, createProjectBriefing, migrateWorkspace, readWorkspace, writeWorkspace, type ProjectConversionInput, type StoragePort } from './workspace.ts'
 
 function getBrowserStorage(): { storage?: StoragePort; warning: string } {
@@ -66,6 +67,62 @@ export function updateLead(id: string, input: Omit<Lead, 'id' | 'createdAt' | 'c
   if (input.serviceId && !state.services.some(service => service.id === input.serviceId)) throw new Error('O serviço selecionado não existe mais.')
   Object.assign(lead, input)
   return saved(lead)
+}
+
+/** Cria ou atualiza somente um rascunho. Versões marcadas como enviadas são imutáveis. */
+export function saveLeadProposal(leadId: string, input: ProposalInput): LeadProposal {
+  const lead = state.leads.find(item => item.id === leadId)
+  if (!lead) throw new Error('A oportunidade não foi encontrada.')
+  if (lead.convertedProjectId) throw new Error('A oportunidade já virou projeto; o histórico da proposta fica somente para consulta.')
+  const error = validateProposalDraft(input)
+  if (error) throw new Error(error)
+  const previous = state.leadProposals.find(item => item.leadId === leadId)
+  const latest = latestRevision(previous)
+  if (latest && latest.status === 'aceita') throw new Error('Esta proposta foi aceita; converta a oportunidade em projeto.')
+  const normalized: ProposalInput = {
+    serviceName: input.serviceName.trim(), scope: input.scope.trim(), exclusions: input.exclusions.trim(),
+    price: input.price, deliveryTerms: input.deliveryTerms.trim(), revisionRounds: input.revisionRounds,
+    paymentTerms: input.paymentTerms.trim(), notes: input.notes.trim(),
+  }
+  if (latest?.status === 'rascunho') {
+    Object.assign(latest, normalized)
+    return saved(previous!)
+  }
+  const createdAt = new Date().toISOString()
+  const revision: ProposalRevision = {
+    ...normalized, id: uid(), number: (latest?.number ?? 0) + 1,
+    createdAt, status: 'rascunho', sentAt: null,
+  }
+  if (previous) {
+    if (previous.revisions.length >= 50) throw new Error('O histórico atingiu o limite de 50 versões.')
+    previous.revisions.push(revision)
+    return saved(previous)
+  }
+  const proposal: LeadProposal = { id: uid(), leadId, revisions: [revision] }
+  state.leadProposals.push(proposal)
+  return saved(proposal)
+}
+
+/** Marcar uma proposta como enviada NÃO envia mensagem ou cria projeto. */
+export function markLeadProposal(leadId: string, status: Exclude<ProposalStatus, 'rascunho'>): LeadProposal {
+  const lead = state.leads.find(item => item.id === leadId)
+  const proposal = state.leadProposals.find(item => item.leadId === leadId)
+  const latest = latestRevision(proposal)
+  if (!lead || !proposal || !latest) throw new Error('A proposta não foi encontrada.')
+  if (lead.convertedProjectId) throw new Error('A proposta de um projeto já convertido não pode ser alterada.')
+  if (status === 'enviada') {
+    if (latest.status !== 'rascunho') throw new Error('Somente um rascunho pode ser marcado como enviado.')
+    const error = validateProposalForSending(latest)
+    if (error) throw new Error(error)
+    latest.status = 'enviada'
+    latest.sentAt = new Date().toISOString()
+    if (lead.stage === 'novo' || lead.stage === 'conversa') lead.stage = 'proposta'
+  } else {
+    if (latest.status !== 'enviada') throw new Error('Somente uma proposta enviada pode ser aceita ou recusada.')
+    latest.status = status
+    if (status === 'recusada' && lead.stage === 'proposta') lead.stage = 'conversa'
+  }
+  return saved(proposal)
 }
 
 export function addProject(input: Omit<Project, 'id' | 'createdAt' | 'sourceLeadId' | 'briefingId'>): Project {
@@ -285,6 +342,7 @@ export function removeItem(key: CollectionKey, id: string): void {
     state.projectInstallments.forEach(item => { item.receivedTransactionIds = item.receivedTransactionIds.filter(txId => txId !== id) })
   } else if (key === 'leads') {
     state.projects.forEach(project => { if (project.sourceLeadId === id) project.sourceLeadId = null })
+    state.leadProposals = state.leadProposals.filter(item => item.leadId !== id)
   } else if (key === 'services') {
     state.leads.forEach(lead => { if (lead.serviceId === id) lead.serviceId = null })
     state.projects.forEach(project => { if (project.serviceId === id) project.serviceId = null })
