@@ -29,7 +29,7 @@ npm run build
 | Visão geral | Indicadores de pipeline, projetos, saldo, andamento do plano e publicações |
 | Plano de lançamento | 17 ações de 30 dias com semana, prioridade, horas e status editável |
 | Serviços e preços | Biblioteca de modelos reutilizáveis, com simulação ilustrativa de piso e preço sugerido |
-| Oportunidades | CRM com vínculo a serviço e conversão em projeto |
+| Oportunidades | CRM com vínculo a serviço, assistente de Novo atendimento, retomada e conversão em projeto |
 | Projetos | Lista e detalhes com oportunidade, serviço, briefing, tarefas, materiais/links e caixa vinculados |
 | Financeiro | Entradas e saídas gerais ou associadas a um projeto |
 | Publicações | 7 ideias para Instagram e WhatsApp; calendário, legenda e resultado |
@@ -78,6 +78,9 @@ Consulte `AGENTS.md`, `docs/PRODUTO.md`, `docs/ROADMAP.md`, `docs/ARQUITETURA.md
 ## Fluxo integrado
 
 - Oportunidades podem ser relacionadas a um serviço do catálogo, editadas e convertidas em projeto com preço combinado confirmado separadamente.
+- O botão **Novo atendimento** abre um assistente em quatro etapas: cliente, serviço, proposta e decisão. É possível salvar a oportunidade em qualquer momento, retomar pelo CRM ou criar o projeto com briefing específico e tarefas copiadas do modelo.
+- Trabalhos contratados fora do CRM continuam podendo ser cadastrados diretamente na página Projetos.
+- O assistente não registra pagamento automaticamente e impede conversões duplicadas.
 - O detalhe do projeto reúne serviço, oportunidade de origem, tarefas, recebimentos, despesas, materiais/ferramentas e saldo do projeto.
 - Na aba **Materiais e ferramentas**, é possível cadastrar, editar, abrir e excluir links HTTP/HTTPS categorizados. A Central não hospeda arquivos nessa versão.
 - O catálogo é uma biblioteca de modelos, com retorno ao atendimento/projeto de origem quando aberto por seus vínculos.
