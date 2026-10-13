@@ -110,3 +110,38 @@ test('Hoje sinaliza oportunidade ganha sem projeto sem criar registros novos', (
   assert.match(action.title, /Regularizar oportunidade/)
   assert.equal(w.projects.length, 0)
 })
+
+test('Hoje usa vencimento de parcela combinada sem inventar atraso ou entrada de caixa', () => {
+  const w = projectWorkspace('2026-12-01')
+  w.projectInstallments.push({
+    id: 'installment-1', projectId: 'project-1', title: 'Sinal combinado', amount: 200,
+    dueDate: '2026-10-12', receivedTransactionIds: [], createdAt: '2026-10-01T00:00:00Z',
+  })
+  const action = buildTodayActions(w, today)[0]!
+  assert.equal(action.kind, 'cobranca')
+  assert.equal(action.priority, 'urgente')
+  assert.equal(action.target === 'project' ? action.tab : null, 'financeiro')
+  assert.match(action.description, /vencimento combinado/)
+  assert.match(action.description, /não significa necessariamente|Não significa necessariamente/)
+  assert.equal(w.transactions.length, 0)
+  w.transactions.push({ id: 'cash-1', description: 'Sinal confirmado', kind: 'entrada',
+    amount: 200, date: '2026-10-12', projectId: 'project-1', createdAt: '2026-10-12' })
+  w.projectInstallments[0]!.receivedTransactionIds.push('cash-1')
+  assert.equal(buildTodayActions(w, today)[0]?.kind, 'briefing')
+})
+
+test('Hoje encaminha projeto em revisão para entrega e não marca aprovação automaticamente', () => {
+  const w = projectWorkspace('2026-12-01')
+  w.projects[0]!.status = 'revisao'
+  const briefing = w.projectBriefings[0]!
+  for (const section of briefing.sections) {
+    for (const question of section.questions) {
+      if (question.required) briefing.answers[question.id] = question.type === 'yes-no' ? 'Sim' : 'Exemplo'
+    }
+  }
+  w.tasks[0]!.done = true
+  const action = buildTodayActions(w, today)[0]!
+  assert.equal(action.kind, 'entrega')
+  assert.equal(action.target === 'project' ? action.tab : null, 'entrega')
+  assert.equal(w.projectDeliveries.length, 0)
+})
