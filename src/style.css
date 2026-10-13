@@ -250,3 +250,5 @@ tr[id^="lead-"]:target,article[id^="service-"]:target{outline:2px solid #aa99ea;
  .attendance-wizard-actions-main .btn{flex:1;white-space:normal}
 }
 @media(max-width:390px){.attendance-steps{gap:4px}.attendance-steps li{font-size:9px}.attendance-wizard-actions{display:grid}.attendance-wizard-actions-main{justify-content:stretch}.attendance-wizard-actions-main .btn{flex:1 1 100%}}
+
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
