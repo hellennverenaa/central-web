@@ -17,6 +17,7 @@ Central particular para lançar e operar um microestúdio de convites digitais, 
 
 - Oportunidade estimada não é faturamento nem dinheiro recebido.
 - Valor de projeto não é automaticamente entrada no caixa.
+- **Confirmações:** ações que exigem confirmação usam um diálogo visual da Central, com título, explicação e opção segura de Cancelar; as ações destrutivas são destacadas. O botão Cancelar/Esc/fechar não executa a operação, e nenhuma ação é confirmada automaticamente.
 - **Propostas:** cada oportunidade pode ter uma proposta com versões. Um rascunho é editável; uma versão marcada como enviada fica congelada e ajustes geram nova versão. O usuário registra manualmente envio, aceite ou recusa; **a Central não envia mensagens nem coleta assinatura**.
 - Aceite comercial não cria projeto ou cobrança: preço da versão aceita é sugerido (mas pode ser revisto) na conversão guiada ou rápida.
 - Os valores propostos são cópias do modelo e da oportunidade no momento do rascunho; editar modelos depois não modifica propostas antigas. Histórico permanece consultável ao converter a oportunidade.
