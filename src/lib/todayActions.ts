@@ -111,7 +111,7 @@ export function buildTodayActions(
       continue
     }
 
-    const briefing = briefingsById.get(project.briefingId)
+    const briefing = project.briefingId ? briefingsById.get(project.briefingId) : undefined
     const missing = briefing ? unansweredRequiredQuestionIds(briefing) : []
     if (missing.length) {
       const firstQuestion = briefing!.sections.flatMap(section => section.questions).find(item => item.id === missing[0])
