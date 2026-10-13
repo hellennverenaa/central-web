@@ -31,6 +31,8 @@ const kinds = {
   briefing: ClipboardList,
   producao: ListTodo,
   financeiro: Wallet,
+  cobranca: Wallet,
+  entrega: CheckCircle2,
   comercial: UsersRound,
   avulsa: CheckCircle2,
 }
