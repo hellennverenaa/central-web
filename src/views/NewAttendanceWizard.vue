@@ -46,7 +46,7 @@ watch([() => form.name, serviceName], () => {
 }, { immediate: true })
 watch([() => form.estimate, service], () => {
   if (!priceEdited.value) form.agreedPrice = suggestedPrice.value
-})
+}, { immediate: true })
 watch(service, () => {
   form.briefingTemplateId = suggestedBriefing.value?.id ?? ''
 }, { immediate: true })
