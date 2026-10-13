@@ -8,7 +8,7 @@ Central particular para lançar e operar um microestúdio de convites digitais, 
 2. Consultar **Serviços e preços**, calcular referência de horas/custos e definir escopo (7 modelos).
 3. Preparar **Publicações** e acompanhar status/resultado (7 modelos).
 4. Copiar perguntas em **Briefing** para conversas de atendimento (13 modelos).
-5. Organizar **Oportunidades**, vincular um serviço do catálogo e converter contatos fechados em projetos.
+5. Usar **Novo atendimento** para registrar cliente, escolher serviço ou deixar indefinido, revisar valor estimado e salvar oportunidade ou converter após confirmação. Retomar atendimentos pelo CRM.
 6. No detalhe de cada **Projeto**, acompanhar briefing, tarefas, materiais e ferramentas (links), recebimentos, despesas e saldo relacionado.
 7. Usar **Tarefas** para ações pessoais ou vinculadas; acompanhar os totais no **Financeiro**.
 8. Acompanhar indicadores na **Visão geral** e usar **Dados & backup**.
@@ -18,6 +18,10 @@ Central particular para lançar e operar um microestúdio de convites digitais, 
 - Oportunidade estimada não é faturamento nem dinheiro recebido.
 - Valor de projeto não é automaticamente entrada no caixa.
 - Projetos convertidos preservam os IDs da oportunidade e do serviço; tarefas e lançamentos podem apontar para o projeto.
+- O assistente permite salvar o atendimento em qualquer etapa após informar o cliente; oportunidades retomadas são editadas, não duplicadas.
+- A etapa **ganho** é consequência da conversão em projeto: não se marca uma oportunidade como ganha sem criar o projeto.
+- Ao criar o projeto pelo assistente, é possível selecionar outro modelo de briefing somente para aquele projeto; o catálogo e os projetos existentes não são modificados.
+- Converter gera um briefing e as tarefas iniciais uma vez só, sem lançar recebimento.
 - **Serviços e preços** é a biblioteca de modelos, não a página de um projeto; projetos existentes não herdam automaticamente alterações posteriores do modelo.
 - **Materiais e ferramentas** guarda links por projeto, com nome, categoria e notas. Links só podem usar HTTP/HTTPS; não existe upload de arquivos no protótipo.
 - Ao excluir um projeto, seus links e o briefing próprio são removidos, enquanto tarefas e lançamentos permanecem sem vínculo.
