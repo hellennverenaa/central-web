@@ -18,6 +18,8 @@
 - [x] Etapa 4: visão Hoje com prazos, briefings, tarefas, negociação e revisão financeira calculados a partir dos registros atuais; atalhos para o contexto certo
 - [x] Etapa 5: parcelas e vencimentos previstos vinculados a recebimentos confirmados, marcos de revisão/aprovação/entrega e migração v5→v6
 - [x] Etapa 6: propostas comerciais por oportunidade, versões imutáveis após envio, aceite manual e migração v6→v7 (sem enviar e-mail ou gerar contrato)
+- [x] Refinamento de UX/performance: modo Dark/Light global, preferência persistente, carregamento sob demanda e agrupamento de gravações locais
+- [ ] QA visual do Dark Mode em todas as telas, incluindo responsividade/contraste, e medições de desempenho em navegador real
 - [x] Testes de domínio, conversão, persistência e migração
 - [x] GitHub Actions para checagem de tipos e build
 - [x] Executar testes, typecheck e build no workspace local
