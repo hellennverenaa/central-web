@@ -5,7 +5,7 @@ Aplicação local e individual para organizar o lançamento de um pequeno estúd
 ## Stack atual
 
 - Vue 3 + TypeScript + Vite
-- CSS responsivo temporário e `lucide-vue-next`
+- CSS responsivo com paletas completas Light/Dark e `lucide-vue-next`
 - Vue reativo + `localStorage` para demonstrar fluxos sem backend
 
 **Arquitetura planejada:** Vue + Node.js/Express + TypeORM + PostgreSQL, com Docker Compose durante desenvolvimento. Supabase **não é obrigatório**. Veja [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
@@ -15,33 +15,45 @@ Aplicação local e individual para organizar o lançamento de um pequeno estúd
 ```bash
 npm install
 npm run typecheck
-npm run test:pricing
+npm test
 npm run dev
 npm run build
 ```
 
-`npm run build` cria a pasta `dist/` quando a checagem de tipos e o Vite terminam sem erro. **Este arquivo não prova que o build foi realizado.** Não conseguimos completar `npm install` no ambiente de geração; rode os comandos localmente e use a CI em `.github/workflows/ci.yml`.
+`npm run build` cria a pasta `dist/` quando a checagem de tipos e o Vite terminam sem erro. Para esta alteração, `npm test`, `npm run typecheck` e `npm run build` foram executados com sucesso no workspace. `npm install` não foi necessário porque as dependências já estavam presentes; o repositório ainda não tem lockfile e uma instalação limpa requer acesso ao registro.
 
 ## Módulos
 
 | Tela | Função |
 | --- | --- |
-| Visão geral | Indicadores de pipeline, projetos, saldo, andamento do plano e publicações |
+| Visão geral | Indicadores de pipeline, projetos, saldo, andamento do plano e publicações; atalho para Hoje |
+| Hoje | Lista de prioridades calculadas a partir de prazos de projetos, briefings incompletos, tarefas e oportunidades abertas |
 | Plano de lançamento | 17 ações de 30 dias com semana, prioridade, horas e status editável |
-| Serviços e preços | 7 serviços exemplificativos; simulação dinâmica de piso e arredondamento |
-| Oportunidades | CRM básico para leads |
-| Projetos | Status, clientes e prazos |
-| Financeiro | Entradas, saídas e saldo histórico |
+| Serviços e preços | Biblioteca de modelos reutilizáveis, com simulação ilustrativa de piso e preço sugerido |
+| Oportunidades | CRM, assistente, propostas com escopo e histórico de versões, retomada e conversão em projeto |
+| Projetos | Lista e detalhes com oportunidade, serviço, briefing, tarefas, materiais/links, parcelas previstas, revisão/entrega e caixa vinculado |
+| Financeiro | Entradas e saídas gerais ou associadas a um projeto |
 | Publicações | 7 ideias para Instagram e WhatsApp; calendário, legenda e resultado |
 | Briefing | 13 perguntas de atendimento com fases, justificativa e próximo passo; copiar perguntas |
-| Minha rotina | Checklist pessoal editável |
-| Dados e backup | Exportação/importação JSON v2, restaurar modelos, dados fictícios |
+| Tarefas | Checklist pessoal e tarefas associadas a projetos |
+| Dados e backup | Exportação/importação JSON v7, migração v1/v2/v3/v4/v5/v6, restaurar modelos, dados fictícios |
 
 Os modelos de plano, serviço, publicação e briefing **foram extraídos da planilha original**, sem incluir nomes/contatos de clientes reais. Números no simulador são somente exemplos, **não são pesquisa de mercado ou proposta comercial definitiva**.
 
-## Persistência / atualização da v0.1
+## Aparência e desempenho
 
-O schema de armazenamento agora é `central-web:workspace:v2`. Se houver dados da v0.1 no mesmo navegador/origem e ainda não existir v2, o app tenta migrá-los, preservando as tabelas antigas e acrescentando os novos modelos. A importação de JSON v1 válido também é aceita e acrescenta esses modelos.
+- O botão **Dark/Light** fica no cabeçalho e alterna as cores **sem recarregar** a página. A preferência explícita é armazenada separadamente como `central-web:theme`; quando não há escolha salva, a Central segue o tema claro/escuro do sistema.
+- `src/theme-colors.css` contém as variações de todas as cores da interface; `src/style.css` utiliza os tokens correspondentes. Ao adicionar uma nova cor, crie os tokens claro/escuro para evitar elementos ilegíveis.
+- As áreas da Central são carregadas sob demanda por `defineAsyncComponent`, mantendo o painel inicial e o modal global disponíveis sem precisar carregar o código de todas as telas.
+- Alterações em campos ligados ao workspace usam uma gravação agrupada em aproximadamente **300 ms**; ações explícitas de salvar, importar ou excluir persistem imediatamente, e operações pendentes são gravadas quando a página é ocultada/fechada.
+- A lógica da visão **Hoje** indexa as relações entre projetos, tarefas, parcelas, briefings e propostas uma vez por atualização, em vez de percorrer todas as coleções a cada projeto.
+- Estas melhorias reduzem trabalho e carregamento inicial, mas **não substituem medições reais** de desempenho e testes visuais no seu dispositivo.
+
+## Persistência / atualização do workspace
+
+O schema atual é `central-web:workspace:v7`. Na primeira abertura, dados v1, v2, v3 ou v4 são migrados para a nova chave, mantendo os registros antigos. As chaves anteriores ficam preservadas. Backups JSON v1, v2, v3, v4, v5, v6 e v7 são aceitos; backups antigos vinculam uma oportunidade a um serviço somente quando o nome corresponde a um único item do catálogo.
+
+Oportunidades guardam o ID do serviço e do projeto convertido. Projetos guardam o serviço e a oportunidade de origem; tarefas e lançamentos guardam o ID do projeto. Ao excluir uma entidade relacionada, os vínculos restantes são limpos e tarefas/lançamentos ficam preservados. A estimativa comercial, o preço combinado e o dinheiro recebido continuam separados.
 
 Use backup JSON antes de apagar ou importar dados. A ação “Restaurar modelos” substitui o armazenamento por um conjunto limpo de templates e **apaga os registros**.
 
@@ -58,8 +70,12 @@ src/
   App.vue                    navegação
   lib/catalog.ts             modelos extraídos da planilha
   lib/types.ts               contratos do domínio
-  lib/store.ts               armazenamento temporário e migração v1 -> v2
-  views/                     10 páginas da central
+  lib/store.ts               armazenamento temporário com gravações agrupadas
+  lib/theme.ts               modo claro/escuro e preferência do navegador
+  lib/writeScheduler.ts      coalescência e salvamento imediato
+  theme-colors.css           paletas light/dark completas
+  lib/workspace.ts           schema v7, migração e validação de backups
+  views/                     páginas da central
 .github/workflows/ci.yml     verificação em pull request
 ```
 
@@ -71,3 +87,18 @@ Consulte `AGENTS.md`, `docs/PRODUTO.md`, `docs/ROADMAP.md`, `docs/ARQUITETURA.md
 - Documentação alinhada à decisão pelo TypeORM.
 - O CI continua usando `npm install` até que `package-lock.json` seja gerado e versionado. Depois, substituir por `npm ci`.
 - O build completo requer dependências instaladas e ainda deve ser executado localmente.
+
+## Fluxo integrado
+
+- Oportunidades podem ser relacionadas a um serviço do catálogo, editadas e convertidas em projeto com preço combinado confirmado separadamente.
+- O botão **Novo atendimento** abre um assistente em quatro etapas: cliente, serviço, proposta e decisão. É possível salvar a oportunidade em qualquer momento, retomar pelo CRM ou criar o projeto com briefing específico e tarefas copiadas do modelo.
+- Trabalhos contratados fora do CRM continuam podendo ser cadastrados diretamente na página Projetos.
+- O assistente não registra pagamento automaticamente e impede conversões duplicadas.
+- **Etapa 6:** na lista **Oportunidades**, o ícone de documento abre uma proposta com escopo, exclusões, prazo, rodadas de revisão, pagamento e preço. Marcar como enviada e registrar aceite são ações manuais, sem disparo de e-mail ou criação de projeto. A proposta aceita sugere o preço na conversão, mas não cria pagamentos. Versões enviadas são preservadas e ajustes criam uma nova versão.
+- **Etapa 5:** a aba **Financeiro** do projeto permite cadastrar parcelas previstas com vencimento e associar pagamentos já registrados, inclusive parciais; uma previsão nunca aumenta o saldo realizado. A aba **Entrega** registra envio para revisão, aprovação e entrega final, com links em Materiais.
+- **Hoje** agrupa tarefas de acompanhamento com uma ação por projeto, sem adicionar estados artificiais. Ao clicar, abre a aba relevante do projeto ou retoma um atendimento. Prazos urgentes usam apenas datas cadastradas; valores a receber não são classificados como pagamentos vencidos.
+- O detalhe do projeto reúne serviço, oportunidade de origem, tarefas, recebimentos, despesas, materiais/ferramentas e saldo do projeto.
+- Na aba **Materiais e ferramentas**, é possível cadastrar, editar, abrir e excluir links HTTP/HTTPS categorizados. A Central não hospeda arquivos nessa versão.
+- O catálogo é uma biblioteca de modelos, com retorno ao atendimento/projeto de origem quando aberto por seus vínculos.
+- A migração v4 → v5 inicializa os materiais vazios sem alterar os clientes, projetos ou briefings existentes.
+- Testes de domínio e migração: `npm test`. Checagem de tipos: `npm run typecheck`. Build: `npm run build`.

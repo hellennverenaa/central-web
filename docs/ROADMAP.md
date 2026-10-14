@@ -8,9 +8,22 @@
 - [x] Catálogo e simulador de preços (7 serviços)
 - [x] Calendário de divulgação (7 publicações)
 - [x] Roteiro de briefing (13 perguntas)
-- [x] Estado local e backup JSON v2 com leitura de v1
+- [x] Estado local e backup JSON v3 com migração de v1/v2
+- [x] Oportunidades, serviços, projetos, tarefas e transações conectados por IDs no frontend
+- [x] Conversão de oportunidade com preço combinado separado da estimativa e do caixa
+- [x] Detalhe do projeto com edição, tarefas, recebimentos e despesas
+- [x] Etapa 2: biblioteca de serviços contextualizada e retorno à oportunidade/projeto de origem
+- [x] Etapa 2: links categorizados de materiais e ferramentas dentro do projeto; formato local v5 com migração de v4
+- [x] Etapa 3: assistente guiado de atendimento, rascunho e retomada de oportunidades, serviço/valor ainda indefinidos e conversão com briefing configurável e tarefas automáticas
+- [x] Etapa 4: visão Hoje com prazos, briefings, tarefas, negociação e revisão financeira calculados a partir dos registros atuais; atalhos para o contexto certo
+- [x] Etapa 5: parcelas e vencimentos previstos vinculados a recebimentos confirmados, marcos de revisão/aprovação/entrega e migração v5→v6
+- [x] Etapa 6: propostas comerciais por oportunidade, versões imutáveis após envio, aceite manual e migração v6→v7 (sem enviar e-mail ou gerar contrato)
+- [x] Refinamento de UX/performance: modo Dark/Light global, preferência persistente, carregamento sob demanda e agrupamento de gravações locais
+- [ ] QA visual do Dark Mode em todas as telas, incluindo responsividade/contraste, e medições de desempenho em navegador real
+- [x] Testes de domínio, conversão, persistência e migração
 - [x] GitHub Actions para checagem de tipos e build
-- [ ] Executar instalação, typecheck, build e QA visual **em ambiente online**
+- [x] Executar testes, typecheck e build no workspace local
+- [ ] Executar instalação limpa e QA visual em desktop/mobile **em ambiente online**
 
 ## Próximo sprint — backend tradicional, sem Supabase obrigatório
 
@@ -24,9 +37,9 @@
 
 ## Após o backend — operação comercial
 
-- [ ] Converter lead ganho em projeto
-- [ ] Gerar proposta/orçamento com escopo e rodadas de revisão
-- [ ] Registrar pagamento parcial e contas a receber (distinto de caixa)
+- [x] Converter oportunidade em projeto no protótipo local; uso comercial real depende de backend e autorização
+- [x] Montar proposta/orçamento com escopo, exclusões, rodadas de revisão e histórico de versões no protótipo; distribuição, assinatura e PDF final ainda dependem de integração futura
+- [x] Registrar parcelas previstas e associar manualmente um ou mais recebimentos reais (inclusive parciais), sem somar previsões ao caixa
 - [ ] Vincular briefing a cada projeto com controle de acesso
 - [ ] Melhorar calendário com datas reais e histórico de resultados
 

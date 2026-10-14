@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Download, Upload, TestTube2, Trash2, ShieldAlert } from 'lucide-vue-next'
-import { clearAll, exportWorkspace, importWorkspace, loadDemo, state } from '../lib/store'
+import { clearAll, exportWorkspace, importWorkspace, loadDemo, persistenceError } from '../lib/store'
+import { confirmAction } from '../lib/confirmation'
 const notice = ref('')
-function loadSample() { if (state.leads.length + state.projects.length + state.tasks.length + state.transactions.length && !confirm('Substituir TODOS os dados locais por dados fictícios?')) return; loadDemo(); notice.value = 'Dados fictícios carregados.' }
-function reset() { if (!confirm('Restaurar os modelos originais e apagar registros locais? Exporte um backup antes!')) return; clearAll(); notice.value = 'Registros removidos e modelos do planejamento restaurados.' }
+async function loadSample() { if (!(await confirmAction({ title: 'Substituir dados por exemplos?', message: 'Todos os registros locais serão substituídos por dados fictícios, incluindo projetos e materiais. Exporte um backup JSON antes.', confirmLabel: 'Substituir dados', tone: 'danger' }))) return; loadDemo(); notice.value = persistenceError.value || 'Dados fictícios carregados e salvos neste dispositivo.' }
+async function reset() { if (!(await confirmAction({ title: 'Restaurar dados originais?', message: 'Esta ação apaga seus registros locais e restaura os modelos iniciais. Exporte um backup JSON primeiro.', confirmLabel: 'Restaurar e apagar', tone: 'danger' }))) return; clearAll(); notice.value = persistenceError.value || 'Registros removidos e modelos do planejamento restaurados.' }
 async function onFile(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
   try {
     const obj: unknown = JSON.parse(await file.text())
-    if (!confirm('Importar este backup substituirá todos os dados atuais. Continuar?')) return
+    if (!(await confirmAction({ title: 'Importar backup e substituir dados?', message: 'A importação substituirá os dados atuais deste navegador pelo conteúdo do arquivo escolhido. Confirme que você guardou uma cópia dos dados anteriores.', confirmLabel: 'Importar backup', tone: 'danger' }))) return
     importWorkspace(obj)
-    notice.value = 'Backup importado.'
+    notice.value = persistenceError.value || 'Backup importado e salvo neste dispositivo.'
   } catch (err) { notice.value = err instanceof Error ? err.message : 'Erro ao importar arquivo.' }
   finally { input.value = '' }
 }

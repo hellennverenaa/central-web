@@ -19,7 +19,8 @@ DBeaver do computador -> conexão TLS/rede autorizada -> PostgreSQL.
 - Dados e modelos persistidos apenas em `localStorage`, sem backend.
 - Não usar informações pessoais de clientes reais ou movimentações financeiras sensíveis.
 - Catálogo contém **simulações ilustrativas**, não preços de mercado.
-- O `Backup` v2 exporta todos os módulos; importação aceita backup v1 válido preservando modelos da v0.2.
+- Schema local v3. Backups v1, v2 e v3 são aceitos; migração preserva registros compatíveis e templates.
+- IDs conectam oportunidade a serviço/projeto, projeto a serviço/oportunidade de origem e tarefas/transações ao projeto.
 - Ao restaurar modelos, dados locais são apagados; antes faça backup.
 
 ## Migração para a aplicação real
