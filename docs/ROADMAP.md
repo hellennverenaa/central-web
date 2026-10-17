@@ -29,7 +29,8 @@
 
 - [x] **7.1:** estrutura Express/TypeScript em `apps/api`, configuração Zod, DataSource TypeORM sem entidades, PostgreSQL local via Docker Compose, healthcheck e testes/CI isolados.
 - [ ] Versionar lockfile próprio da API para usar `npm ci` em instalações futuras.
-- [ ] **7.2:** entidades, índices e migrations versionadas, sem sincronização automática.
+- [x] **7.2 (código):** 17 entidades TypeORM, índices, constraints e migration inicial versionada, sem sincronização automática. CI testa PostgreSQL temporário.
+- [ ] **7.2 (QA local):** executar migration na instância `central_dev` e validar no DBeaver as tabelas e relacionamentos antes de seguir para autenticação.
 - [ ] **7.3:** autenticação, autorização por titular, sessões/cookies seguros, rate limiting e testes de acesso indevido.
 - [ ] **7.4:** conectar frontend com loading/erros e migrar registros do localStorage de forma controlada.
 
