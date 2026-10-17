@@ -2,6 +2,7 @@ import type { Express, Request, Response } from 'express'
 import { z } from 'zod'
 import type { AuthService } from './service.js'
 import { createLoginLimiter } from './rateLimit.js'
+import { requireSession } from './requireSession.js'
 import { SESSION_COOKIE, SESSION_TTL_MS, sessionTokenFromCookie } from './session.js'
 
 export type AuthBackend = Pick<AuthService, 'login' | 'getUser' | 'logout'>
@@ -67,24 +68,8 @@ export function registerAuthRoutes(app: Express, { auth, webOrigin, isDatabaseRe
     }
   })
 
-  app.get('/auth/me', async (req: Request, res: Response) => {
-    rejectCache(res)
-    const token = sessionTokenFromCookie(req.get('Cookie'))
-    if (!token) {
-      res.status(401).json({ error: 'unauthorized' })
-      return
-    }
-    if (!(await ready(res))) return
-    try {
-      const user = await auth.getUser(token)
-      if (!user) {
-        res.status(401).json({ error: 'unauthorized' })
-        return
-      }
-      res.json({ user })
-    } catch {
-      res.status(503).json({ error: 'service_unavailable' })
-    }
+  app.get('/auth/me', requireSession(auth, isDatabaseReady), (_req: Request, res: Response) => {
+    res.json({ user: res.locals.authUser })
   })
 
   app.post('/auth/logout', checkOrigin, async (req: Request, res: Response) => {
