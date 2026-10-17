@@ -3,13 +3,19 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc -p tsconfig.build.json",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "db:status": "tsx src/db/migrate.ts status",
+    "db:migrate": "tsx src/db/migrate.ts up",
+    "db:revert:test": "tsx src/db/migrate.ts down",
+    "test:db": "tsx --test tests/database.integration.test.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
