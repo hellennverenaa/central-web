@@ -27,3 +27,27 @@ test('readiness não considera banco desconectado como pronto', async () => {
   const probe = createReadinessProbe(fake as unknown as ReturnType<typeof createDataSource>)
   assert.equal(await probe(), false)
 })
+
+test('readiness rejeita banco conectado enquanto a autenticação não foi migrada', async () => {
+  let queried = false
+  const fake = {
+    isInitialized: true,
+    showMigrations: async () => true,
+    query: async () => { queried = true; return [{ '?column?': 1 }] },
+  }
+  const probe = createReadinessProbe(fake as unknown as ReturnType<typeof createDataSource>)
+  assert.equal(await probe(), false)
+  assert.equal(queried, false, 'Não pode reportar ready sem migrations completas.')
+})
+
+test('readiness aceita banco migrado e conectado', async () => {
+  let checks = 0
+  const fake = {
+    isInitialized: true,
+    showMigrations: async () => { checks += 1; return false },
+    query: async () => [{ '?column?': 1 }],
+  }
+  const probe = createReadinessProbe(fake as unknown as ReturnType<typeof createDataSource>)
+  assert.equal(await probe(), true)
+  assert.equal(checks, 1)
+})
