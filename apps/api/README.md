@@ -52,9 +52,9 @@ npm run db:status
 
 ### Modelo e integridade
 
-A migration `1792200000000-InitialDomainSchema.ts` cria **17 tabelas de domínio**, mais `schema_migrations` gerenciada pelo TypeORM:
+A primeira migration `1792200000000-InitialDomainSchema.ts` cria **17 tabelas de domínio**, mais `schema_migrations` gerenciada pelo TypeORM; a migration posterior organiza `users` dentro de `auth`:
 
-- Titularidade e catálogo: `users`, `clients`, `services`, `briefing_templates`.
+- Titularidade e catálogo: `auth.users`, `clients`, `services`, `briefing_templates`.
 - Comercial: `leads`, `proposals`, `proposal_revisions`.
 - Execução: `projects`, `project_briefings`, `tasks`, `project_materials`, `project_deliveries`.
 - Financeiro: `transactions`, `project_installments`, `installment_receipts`.
@@ -68,9 +68,44 @@ Os IDs de domínio são `TEXT` para aceitar tanto novos UUIDs como identificador
 
 O GitHub Actions já usa um PostgreSQL **temporário** para aplicar/reverter a migration e verificar os relacionamentos. Para repetir localmente, **crie outro banco chamado `central_test`** e use variáveis `NODE_ENV=test`, `DB_NAME=central_test`, `TEST_DATABASE=1` e suas credenciais locais de teste. **Nunca rode `test:db` no banco `central_dev`.**
 
+## Organização por schemas do PostgreSQL
+
+O banco continua sendo **central_dev**. O schema `public` é o padrão do PostgreSQL;
+ele não indica acesso público pela rede. A autenticação agora fica em um schema
+dedicado: **`auth.users`** (e-mail e hash de senha com scrypt e sal)
+e **`auth.auth_sessions`** (hash SHA-256 do token de sessão, titular e validade).
+Os outros dados continuam no `public` (`projects`, `transactions`, `leads`, etc.).
+
+A migration incremental `1792200002000-SeparateAuthSchema` **move** as duas tabelas
+existentes, sem recriar nem apagar usuários, sessões, índices e referências.
+As duas migrations originais permanecem intactas para bancos criados anteriormente.
+`public.schema_migrations` continua registrando o histórico do TypeORM.
+
+Para aplicar **após atualizar a branch**:
+
+```bash
+cd apps/api
+npm run db:status
+npm run db:migrate
+npm run db:status
+```
+
+Antes de qualquer migration, faça backup se já inseriu dados de teste. Não execute
+`docker compose down -v` nem mova as tabelas manualmente no DBeaver. Depois de
+aplicar a migration, atualize o DBeaver: `central_dev → Schemas → auth → Tables`
+exibe as tabelas de login; `central_dev → Schemas → public → Tables` mantém os
+dados comerciais. A mudança de schema **é organização**, não substitui isolamento
+por permissões, autenticação e autorização.
+
+**Serviço de login para outras aplicações:** o módulo `auth` é exclusivo da
+administração Central Web. Se no futuro sites de clientes exigirem contas, criar
+um provedor de identidade **separado** (possivelmente OIDC/OAuth 2.0), com usuários,
+aplicações, ambientes e permissões isolados — não reutilizar esta API administrativa
+como autenticação de clientes.
+
 ## Etapa 7.3 — login e sessões locais
 
-Execute `npm run db:migrate` antes de cadastrar o titular. A migration adiciona a tabela `auth_sessions` e não cria usuários automaticamente.
+Execute `npm run db:migrate` antes de cadastrar o titular. A migration de sessões adiciona a tabela `auth_sessions` e a migration seguinte a move para `auth.auth_sessions`; nenhuma delas cria usuários automaticamente.
 
 ```bash
 # Dentro de apps/api, com .env configurado e PostgreSQL iniciado
