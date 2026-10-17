@@ -15,7 +15,7 @@ test('migration PostgreSQL real: tabelas, constraints, isolamento e rollback em 
   try {
     assert.equal(ds.options.synchronize, false)
     const migrated = await ds.runMigrations({ transaction: 'all' })
-    assert.equal(migrated.length, 1)
+    assert.equal(migrated.length, 2)
     assert.equal((await ds.runMigrations({ transaction: 'all' })).length, 0, 'Migration deve ser idempotente.')
     const tables = (await ds.query(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`)) as Array<{ tablename: string }>
     const names = new Set(tables.map(row => row.tablename))
@@ -23,7 +23,7 @@ test('migration PostgreSQL real: tabelas, constraints, isolamento e rollback em 
       'users', 'clients', 'services', 'briefing_templates', 'leads', 'proposals',
       'proposal_revisions', 'projects', 'project_briefings', 'tasks', 'transactions',
       'project_installments', 'installment_receipts', 'project_materials',
-      'project_deliveries', 'plan_items', 'publications', 'schema_migrations',
+      'project_deliveries', 'plan_items', 'publications', 'auth_sessions', 'schema_migrations',
     ]) assert.ok(names.has(name), `Tabela esperada não encontrada: ${name}`)
 
     const id1 = '11111111-1111-4111-8111-111111111111'
@@ -77,6 +77,7 @@ test('migration PostgreSQL real: tabelas, constraints, isolamento e rollback em 
     assert.ok(schema.includes('project_installments'))
 
     // Banco exclusivo _test: garante down sem apagar dados reais.
+    await ds.undoLastMigration({ transaction: 'all' })
     await ds.undoLastMigration({ transaction: 'all' })
     const after = await ds.query(`SELECT to_regclass('public.projects') AS project_table`)
     assert.equal(after[0].project_table, null)
