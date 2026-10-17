@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from 'express'
 import { z } from 'zod'
+import { createHash } from 'node:crypto'
 import type { AuthService } from './service.js'
 import { createLoginLimiter } from './rateLimit.js'
 import { requireSession } from './requireSession.js'
@@ -25,7 +26,8 @@ function cookies(secure: boolean) {
   }
 }
 export function registerAuthRoutes(app: Express, { auth, webOrigin, isDatabaseReady, secureCookies }: AuthRoutesOptions) {
-  const limiter = createLoginLimiter()
+  const ipLimiter = createLoginLimiter()
+  const accountLimiter = createLoginLimiter(12)
 
   function checkOrigin(req: Request, res: Response, next: () => void) {
     // Exigido até em localhost. CORS sozinho não previne CSRF.
@@ -44,7 +46,8 @@ export function registerAuthRoutes(app: Express, { auth, webOrigin, isDatabaseRe
   app.post('/auth/login', checkOrigin, async (req: Request, res: Response) => {
     rejectCache(res)
     // Não confiar em X-Forwarded-For: app.trustProxy permanece false.
-    if (!limiter.attempt(req.ip ?? 'local')) {
+    const clientIP = req.ip ?? 'local'
+    if (!ipLimiter.attempt(clientIP)) {
       res.setHeader('Retry-After', '900')
       res.status(429).json({ error: 'too_many_attempts' })
       return
@@ -54,6 +57,14 @@ export function registerAuthRoutes(app: Express, { auth, webOrigin, isDatabaseRe
       res.status(400).json({ error: 'invalid_request' })
       return
     }
+    // Limitar também por conta reduz ataques distribuídos entre IPs diferentes.
+    // Não armazenar e-mail em claro nas estruturas de contagem.
+    const accountKey = createHash('sha256').update(parsed.data.email.trim().toLowerCase()).digest('hex')
+    if (!accountLimiter.attempt(accountKey)) {
+      res.setHeader('Retry-After', '900')
+      res.status(429).json({ error: 'too_many_attempts' })
+      return
+    }
     if (!(await ready(res))) return
     try {
       const result = await auth.login(parsed.data.email, parsed.data.password)
@@ -61,6 +72,8 @@ export function registerAuthRoutes(app: Express, { auth, webOrigin, isDatabaseRe
         res.status(401).json({ error: 'invalid_credentials' })
         return
       }
+      ipLimiter.reset(clientIP)
+      accountLimiter.reset(accountKey)
       res.cookie(SESSION_COOKIE, result.token, { ...cookies(secureCookies), maxAge: SESSION_TTL_MS })
       res.json({ user: result.user })
     } catch {
