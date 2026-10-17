@@ -21,6 +21,18 @@ export function createApp({ webOrigin, isDatabaseReady, auth, secureCookies = fa
   app.use(helmet())
   app.use(cors({ origin: webOrigin, credentials: true, methods: ['GET', 'POST'], allowedHeaders: ['Content-Type'] }))
   app.use(express.json({ limit: '16kb' }))
+  // Padrão seguro para rotas que alterem dados: a origem autorizada deve ser explícita.
+  // CORS sozinho não protege contra requisições CSRF nem chamadas de outros clientes HTTP.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) &&
+        req.get('Origin') !== webOrigin) {
+      res.setHeader('Cache-Control', 'no-store')
+      res.status(403).json({ error: 'forbidden_origin' })
+      return
+    }
+    next()
+  })
+
 
   app.get('/health', (_req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-store')
