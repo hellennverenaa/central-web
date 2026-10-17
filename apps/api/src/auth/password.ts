@@ -1,7 +1,5 @@
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto'
-import { promisify } from 'node:util'
 
-const scrypt = promisify(scryptCallback)
 const COST = { N: 16384, r: 8, p: 1, maxmem: 32 * 1024 * 1024 } as const
 const KEY_BYTES = 64
 const SALT_BYTES = 16
@@ -13,7 +11,12 @@ export function validPassword(password: unknown): password is string {
 }
 
 async function derive(password: string, salt: Buffer): Promise<Buffer> {
-  return await scrypt(password, salt, KEY_BYTES, COST) as Buffer
+  return await new Promise<Buffer>((resolve, reject) => {
+    scryptCallback(password, salt, KEY_BYTES, COST, (error, digest) => {
+      if (error) reject(error)
+      else resolve(digest)
+    })
+  })
 }
 
 export async function hashPassword(password: string): Promise<string> {
