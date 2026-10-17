@@ -5,13 +5,14 @@ import { createDataSource, createReadinessProbe } from '../src/db/dataSource.js'
 
 const env = parseEnv({ DB_PASSWORD: 'senha-apenas-para-teste' })
 
-test('TypeORM nunca gera tabelas automaticamente na etapa de estrutura', () => {
+test('TypeORM só registra entidades e migrations, sem alterar tabelas automaticamente', () => {
   const dataSource = createDataSource(env)
   assert.equal(dataSource.options.type, 'postgres')
   assert.equal(dataSource.options.synchronize, false)
   assert.equal(dataSource.options.migrationsRun, false)
-  assert.deepEqual(dataSource.options.entities, [])
-  assert.deepEqual(dataSource.options.migrations, [])
+  assert.equal(dataSource.options.entities?.length, 17)
+  assert.equal(dataSource.options.migrations?.length, 1)
+  assert.equal(dataSource.options.migrationsTableName, 'schema_migrations')
   assert.equal(dataSource.isInitialized, false)
 })
 
