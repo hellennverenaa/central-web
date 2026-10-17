@@ -8,7 +8,7 @@ Aplicação local e individual para organizar o lançamento de um pequeno estúd
 - CSS responsivo com paletas completas Light/Dark e `lucide-vue-next`
 - Vue reativo + `localStorage` para demonstrar fluxos sem backend
 
-**Arquitetura planejada:** Vue + Node.js/Express + TypeORM + PostgreSQL, com Docker Compose durante desenvolvimento. Supabase **não é obrigatório**. Veja [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+**Etapa 7.1 em andamento:** a estrutura da API Node/Express/TypeScript + TypeORM/PostgreSQL está em `apps/api`, com Docker Compose local. Ainda não há rotas de negócio nem integração com o frontend. Veja [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
 
 ## Iniciar no computador
 
@@ -21,6 +21,21 @@ npm run build
 ```
 
 `npm run build` cria a pasta `dist/` quando a checagem de tipos e o Vite terminam sem erro. Para esta alteração, `npm test`, `npm run typecheck` e `npm run build` foram executados com sucesso no workspace. `npm install` não foi necessário porque as dependências já estavam presentes; o repositório ainda não tem lockfile e uma instalação limpa requer acesso ao registro.
+
+## Backend local — etapa 7.1
+
+O backend está **isolado** em [`apps/api/`](apps/api), com instruções completas em [`apps/api/README.md`](apps/api/README.md). Para desenvolver a API, em outro terminal:
+
+```bash
+cd apps/api
+cp .env.example .env
+# Escolha uma senha local forte em DB_PASSWORD no .env
+npm install
+docker compose up -d db
+npm run dev
+```
+
+Os endpoints de verificação são `http://127.0.0.1:3333/health` (processo) e `http://127.0.0.1:3333/health/ready` (PostgreSQL). Na raiz do repositório, `npm run dev` continua iniciando somente o frontend.
 
 ## Módulos
 
@@ -59,7 +74,7 @@ Use backup JSON antes de apagar ou importar dados. A ação “Restaurar modelos
 
 ## Segurança
 
-Este projeto **não tem autenticação, criptografia em repouso, backend ou sincronização**. `localStorage` não protege registros de clientes. **Não armazene dados pessoais reais, números de telefone, respostas de briefing ou dados financeiros sensíveis, nem exponha esta versão como aplicação de produção.** Os arquivos de backup não são criptografados.
+O frontend **não tem autenticação, criptografia em repouso nem sincronização**. A infraestrutura da API foi criada, mas ainda não possui autenticação ou rotas de domínio; portanto, não está pronta para receber dados de clientes. `localStorage` não protege registros de clientes. **Não armazene dados pessoais reais, números de telefone, respostas de briefing ou dados financeiros sensíveis, nem exponha esta versão como aplicação de produção.** Os arquivos de backup não são criptografados.
 
 A futura versão para uso real precisa de autenticação, autorização na API para todas as entidades, migrations, backups e critérios de privacidade (LGPD).
 
