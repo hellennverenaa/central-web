@@ -2,6 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { parseEnv } from '../src/config/env.js'
 import { createDataSource } from '../src/db/dataSource.js'
+import { AuthService } from '../src/auth/service.js'
+import { sessionDigest } from '../src/auth/session.js'
 
 const enabled = process.env.TEST_DATABASE === '1'
 
@@ -25,6 +27,30 @@ test('migration PostgreSQL real: tabelas, constraints, isolamento e rollback em 
       'project_installments', 'installment_receipts', 'project_materials',
       'project_deliveries', 'plan_items', 'publications', 'auth_sessions', 'schema_migrations',
     ]) assert.ok(names.has(name), `Tabela esperada não encontrada: ${name}`)
+
+    // O primeiro titular só pode ser criado via comando local, nunca por endpoint público.
+    const auth = new AuthService(ds)
+    const owner = await auth.createFirstOwner('titular@example.invalid', 'senha-teste-ficticia-123')
+    assert.match(owner.id, /^[0-9a-f-]{36}$/)
+    await assert.rejects(
+      () => auth.createFirstOwner('segundo@example.invalid', 'senha-teste-ficticia-456'),
+      /Já existe um titular/,
+    )
+    assert.equal(await auth.login(owner.email, 'senha-incorreta-123'), null)
+    const login = await auth.login(owner.email, 'senha-teste-ficticia-123')
+    assert.ok(login)
+    assert.equal(login.user.email, owner.email)
+    const savedSession = await ds.query('SELECT token_hash FROM auth_sessions WHERE user_id=$1', [owner.id])
+    assert.equal(savedSession[0].token_hash, sessionDigest(login.token))
+    assert.notEqual(savedSession[0].token_hash, login.token)
+    assert.deepEqual(await auth.getUser(login.token), login.user)
+    assert.equal(await auth.getUser('b'.repeat(64)), null)
+    await ds.query(`UPDATE auth_sessions
+      SET created_at=now()-interval '9 days', expires_at=now()-interval '1 day'
+      WHERE user_id=$1`, [owner.id])
+    assert.equal(await auth.getUser(login.token), null, 'Sessão expirada não autentica.')
+    await auth.logout(login.token)
+    assert.equal((await ds.query('SELECT count(*)::integer AS total FROM auth_sessions'))[0].total, 0)
 
     const id1 = '11111111-1111-4111-8111-111111111111'
     const id2 = '22222222-2222-4222-8222-222222222222'
