@@ -1,8 +1,10 @@
 import 'reflect-metadata'
 import { DataSource } from 'typeorm'
 import type { ApiEnv } from '../config/env.js'
+import { databaseEntities } from './entities.js'
+import { InitialDomainSchema1792200000000 } from './migrations/1792200000000-InitialDomainSchema.js'
 
-/** Etapa 7.1: sem entidades, sem migrations e SEM synchronize automático. */
+/** Etapa 7.2: entidades registradas; executar migrations apenas pelo comando explícito. */
 export function createDataSource(env: ApiEnv): DataSource {
   return new DataSource({
     type: 'postgres',
@@ -14,8 +16,9 @@ export function createDataSource(env: ApiEnv): DataSource {
     synchronize: false,
     migrationsRun: false,
     logging: false,
-    entities: [],
-    migrations: [],
+    entities: databaseEntities,
+    migrations: [InitialDomainSchema1792200000000],
+    migrationsTableName: 'schema_migrations',
     extra: { connectionTimeoutMillis: 3000 },
   })
 }
