@@ -37,6 +37,27 @@ test('limitador protege login contra sequência de tentativas repetidas', () => 
   assert.equal(limit.attempt('127.0.0.1', 1101), true)
 })
 
+test('limitador mantém bloqueios mesmo quando o número de chaves chega ao limite', () => {
+  const limiter = createLoginLimiter(2, 1000, 2)
+  assert.equal(limiter.attempt('ip-1', 10), true)
+  assert.equal(limiter.attempt('ip-2', 10), true)
+  assert.equal(limiter.attempt('ip-2', 11), true)
+  assert.equal(limiter.attempt('ip-3', 12), true)
+  assert.equal(limiter.attempt('ip-2', 13), false,
+    'Adicionar outro IP não pode apagar o bloqueio do IP anterior.')
+  limiter.reset('ip-2')
+  assert.equal(limiter.attempt('ip-2', 14), true,
+    'Login válido pode limpar as tentativas acumuladas do usuário.')
+})
+
+test('limitador aceita chaves de contas separadas, não somente endereços IP', () => {
+  const limiter = createLoginLimiter(2, 1000)
+  assert.equal(limiter.attempt('conta:um', 1), true)
+  assert.equal(limiter.attempt('conta:um', 2), true)
+  assert.equal(limiter.attempt('conta:um', 3), false)
+  assert.equal(limiter.attempt('conta:dois', 3), true)
+})
+
 async function withApp(auth: AuthBackend, visit: (url: string) => Promise<void>, ready = async () => true) {
   const server = createApp({
     webOrigin: 'http://localhost:5173', isDatabaseReady: ready, auth,
@@ -62,6 +83,16 @@ test('login: valida origem, credenciais, cookie HttpOnly e consulta perfil auten
     logout: async requestToken => { loggedOut = requestToken },
   }
   await withApp(auth, async url => {
+    // Política de origem se aplica também às futuras rotas de alteração.
+    const originMissing = await fetch(url + '/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, password: 'senha-correta-123' }),
+    })
+    assert.equal(originMissing.status, 403)
+    const futurePut = await fetch(url + '/api/projects/any', {
+      method: 'PUT', headers: { Origin: 'https://hostile.invalid' },
+    })
+    assert.equal(futurePut.status, 403)
     const missing = await fetch(url + '/auth/me')
     assert.equal(missing.status, 401)
     const crossSite = await fetch(url + '/auth/login', { method: 'POST',
