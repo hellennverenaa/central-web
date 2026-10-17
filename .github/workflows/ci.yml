@@ -1,4 +1,4 @@
-name: Verify frontend
+name: Verify Central Web
 on:
   pull_request:
   push:
@@ -19,3 +19,20 @@ jobs:
         run: npm run typecheck
       - name: Build
         run: npm run build
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install API dependencies
+        run: npm install --prefix apps/api --no-audit --no-fund
+      - name: API typecheck
+        run: npm run typecheck:api
+      - name: API unit and health tests
+        run: npm run test:api
+      - name: API build
+        run: npm run build:api
+      - name: Validate PostgreSQL Compose config
+        run: docker compose --env-file apps/api/.env.example -f apps/api/compose.yaml config --quiet
