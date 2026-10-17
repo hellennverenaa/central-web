@@ -50,6 +50,10 @@ npm run db:status
 
 Atualize o DBeaver e expanda `central_dev → Esquemas → public → Tabelas`. A migration cria as **tabelas vazias**, sem importar dados do navegador. Consulte o guia completo em [`apps/api/README.md`](apps/api/README.md).
 
+### Login local da API (etapa 7.3)
+
+Depois de `npm run db:migrate` e com PostgreSQL ativo, dentro de `apps/api` execute `npm run auth:create-owner`. A senha será solicitada sem aparecer na tela; não existe cadastro público. A API oferece login, verificação da própria sessão e logout, **mas o frontend Vue continua utilizando dados locais** e ainda não possui formulário integrado. Veja [`apps/api/README.md`](apps/api/README.md) para limites e comandos.
+
 ## Módulos
 
 | Tela | Função |
@@ -87,7 +91,7 @@ Use backup JSON antes de apagar ou importar dados. A ação “Restaurar modelos
 
 ## Segurança
 
-O frontend **não tem autenticação, criptografia em repouso nem sincronização**. A infraestrutura da API foi criada, mas ainda não possui autenticação ou rotas de domínio; portanto, não está pronta para receber dados de clientes. `localStorage` não protege registros de clientes. **Não armazene dados pessoais reais, números de telefone, respostas de briefing ou dados financeiros sensíveis, nem exponha esta versão como aplicação de produção.** Os arquivos de backup não são criptografados.
+O frontend **não tem autenticação, criptografia em repouso nem sincronização**. A API tem autenticação local, mas ainda não expõe rotas de clientes e não oferece proteção de produção; não está pronta para receber dados reais de clientes. `localStorage` não protege registros de clientes. **Não armazene dados pessoais reais, números de telefone, respostas de briefing ou dados financeiros sensíveis, nem exponha esta versão como aplicação de produção.** Os arquivos de backup não são criptografados.
 
 A futura versão para uso real precisa de autenticação, autorização na API para todas as entidades, migrations, backups e critérios de privacidade (LGPD).
 
