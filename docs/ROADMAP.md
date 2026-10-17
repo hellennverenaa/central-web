@@ -31,7 +31,8 @@
 - [ ] Versionar lockfile próprio da API para usar `npm ci` em instalações futuras.
 - [x] **7.2 (código):** 17 entidades TypeORM, índices, constraints e migration inicial versionada, sem sincronização automática. CI testa PostgreSQL temporário.
 - [ ] **7.2 (QA local):** executar migration na instância `central_dev` e validar no DBeaver as tabelas e relacionamentos antes de seguir para autenticação.
-- [ ] **7.3:** autenticação, autorização por titular, sessões/cookies seguros, rate limiting e testes de acesso indevido.
+- [x] **7.3 (fundação local):** primeiro titular criado por CLI, hash scrypt, sessão opaca em cookie HttpOnly, login/me/logout, validação de origem e rate limiter em memória, com testes reais no PostgreSQL.
+- [ ] **7.3 (endurecimento):** autorização por titular em cada futura rota de dados, TLS/deploy seguro, limitação de tentativas distribuída, trilhas de auditoria e revisão antes de permitir dados reais.
 - [ ] **7.4:** conectar frontend com loading/erros e migrar registros do localStorage de forma controlada.
 
 ## Demais tarefas do backend
