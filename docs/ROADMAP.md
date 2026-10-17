@@ -25,7 +25,15 @@
 - [x] Executar testes, typecheck e build no workspace local
 - [ ] Executar instalação limpa e QA visual em desktop/mobile **em ambiente online**
 
-## Próximo sprint — backend tradicional, sem Supabase obrigatório
+## Etapa 7 — backend tradicional, sem Supabase obrigatório
+
+- [x] **7.1:** estrutura Express/TypeScript em `apps/api`, configuração Zod, DataSource TypeORM sem entidades, PostgreSQL local via Docker Compose, healthcheck e testes/CI isolados.
+- [ ] Versionar lockfile próprio da API para usar `npm ci` em instalações futuras.
+- [ ] **7.2:** entidades, índices e migrations versionadas, sem sincronização automática.
+- [ ] **7.3:** autenticação, autorização por titular, sessões/cookies seguros, rate limiting e testes de acesso indevido.
+- [ ] **7.4:** conectar frontend com loading/erros e migrar registros do localStorage de forma controlada.
+
+## Demais tarefas do backend
 
 - [ ] Confirmar contratos do domínio e adotar TypeORM como ORM
 - [ ] Criar Docker Compose local com PostgreSQL e volume persistente
