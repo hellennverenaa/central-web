@@ -4,6 +4,10 @@ import { parseEnv } from '../src/config/env.js'
 import { createDataSource } from '../src/db/dataSource.js'
 import { AuthService } from '../src/auth/service.js'
 import { sessionDigest } from '../src/auth/session.js'
+import { hashPassword } from '../src/auth/password.js'
+import { DataSource } from 'typeorm'
+import { InitialDomainSchema1792200000000 } from '../src/db/migrations/1792200000000-InitialDomainSchema.js'
+import { AuthSessions1792200001000 } from '../src/db/migrations/1792200001000-AuthSessions.js'
 
 const enabled = process.env.TEST_DATABASE === '1'
 
@@ -17,16 +21,21 @@ test('migration PostgreSQL real: tabelas, constraints, isolamento e rollback em 
   try {
     assert.equal(ds.options.synchronize, false)
     const migrated = await ds.runMigrations({ transaction: 'all' })
-    assert.equal(migrated.length, 2)
+    assert.equal(migrated.length, 3)
     assert.equal((await ds.runMigrations({ transaction: 'all' })).length, 0, 'Migration deve ser idempotente.')
     const tables = (await ds.query(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`)) as Array<{ tablename: string }>
     const names = new Set(tables.map(row => row.tablename))
     for (const name of [
-      'users', 'clients', 'services', 'briefing_templates', 'leads', 'proposals',
+      'clients', 'services', 'briefing_templates', 'leads', 'proposals',
       'proposal_revisions', 'projects', 'project_briefings', 'tasks', 'transactions',
       'project_installments', 'installment_receipts', 'project_materials',
-      'project_deliveries', 'plan_items', 'publications', 'auth_sessions', 'schema_migrations',
+      'project_deliveries', 'plan_items', 'publications', 'schema_migrations',
     ]) assert.ok(names.has(name), `Tabela esperada não encontrada: ${name}`)
+
+    const authTables = (await ds.query(`SELECT tablename FROM pg_tables WHERE schemaname = 'auth'`)) as Array<{ tablename: string }>
+    assert.deepEqual(authTables.map(row => row.tablename).sort(), ['auth_sessions', 'users'])
+    assert.equal((await ds.query(`SELECT to_regclass('public.users') AS table_name`))[0].table_name, null)
+    assert.equal((await ds.query(`SELECT to_regclass('auth.users') AS table_name`))[0].table_name, 'auth.users')
 
     // O primeiro titular só pode ser criado via comando local, nunca por endpoint público.
     const auth = new AuthService(ds)
@@ -40,21 +49,21 @@ test('migration PostgreSQL real: tabelas, constraints, isolamento e rollback em 
     const login = await auth.login(owner.email, 'senha-teste-ficticia-123')
     assert.ok(login)
     assert.equal(login.user.email, owner.email)
-    const savedSession = await ds.query('SELECT token_hash FROM auth_sessions WHERE user_id=$1', [owner.id])
+    const savedSession = await ds.query('SELECT token_hash FROM auth.auth_sessions WHERE user_id=$1', [owner.id])
     assert.equal(savedSession[0].token_hash, sessionDigest(login.token))
     assert.notEqual(savedSession[0].token_hash, login.token)
     assert.deepEqual(await auth.getUser(login.token), login.user)
     assert.equal(await auth.getUser('b'.repeat(64)), null)
-    await ds.query(`UPDATE auth_sessions
+    await ds.query(`UPDATE auth.auth_sessions
       SET created_at=now()-interval '9 days', expires_at=now()-interval '1 day'
       WHERE user_id=$1`, [owner.id])
     assert.equal(await auth.getUser(login.token), null, 'Sessão expirada não autentica.')
     await auth.logout(login.token)
-    assert.equal((await ds.query('SELECT count(*)::integer AS total FROM auth_sessions'))[0].total, 0)
+    assert.equal((await ds.query('SELECT count(*)::integer AS total FROM auth.auth_sessions'))[0].total, 0)
 
     const id1 = '11111111-1111-4111-8111-111111111111'
     const id2 = '22222222-2222-4222-8222-222222222222'
-    await ds.query('INSERT INTO users(id,email) VALUES($1,$2),($3,$4)',
+    await ds.query('INSERT INTO auth.users(id,email) VALUES($1,$2),($3,$4)',
       [id1, 'proprietaria1@example.invalid', id2, 'proprietaria2@example.invalid'])
     await ds.query('INSERT INTO clients(id,owner_id,name) VALUES($1,$2,$3)',
       ['cliente-a', id1, 'Cliente fictício'])
@@ -105,8 +114,60 @@ test('migration PostgreSQL real: tabelas, constraints, isolamento e rollback em 
     // Banco exclusivo _test: garante down sem apagar dados reais.
     await ds.undoLastMigration({ transaction: 'all' })
     await ds.undoLastMigration({ transaction: 'all' })
+    await ds.undoLastMigration({ transaction: 'all' })
     const after = await ds.query(`SELECT to_regclass('public.projects') AS project_table`)
     assert.equal(after[0].project_table, null)
+
+    assert.equal((await ds.query(`SELECT to_regnamespace('auth') AS ns`))[0].ns, null)
+
+    // Em um ambiente já configurado, a migration deve preservar contas,
+    // hashes, sessões e referências de projetos antes existentes em public.
+    const oldDb = new DataSource({
+      ...ds.options,
+      migrations: [InitialDomainSchema1792200000000, AuthSessions1792200001000],
+    })
+    await oldDb.initialize()
+    try {
+      assert.equal((await oldDb.runMigrations({ transaction: 'all' })).length, 2)
+      const priorId = '33333333-3333-4333-8333-333333333333'
+      const priorToken = 'c'.repeat(64)
+      const priorHash = await hashPassword('senha-de-teste-migracao-123')
+      await oldDb.query(
+        'INSERT INTO public.users(id,email,password_hash) VALUES($1,$2,$3)',
+        [priorId, 'conta-antiga@example.invalid', priorHash])
+      await oldDb.query(
+        'INSERT INTO public.auth_sessions(token_hash,user_id,expires_at) VALUES($1,$2,$3)',
+        [sessionDigest(priorToken), priorId, new Date(Date.now() + 86400_000)])
+      await oldDb.query(
+        'INSERT INTO public.clients(id,owner_id,name) VALUES($1,$2,$3)',
+        ['cliente-legado', priorId, 'Cliente ilustrativo'])
+    } finally {
+      await oldDb.destroy()
+    }
+
+    assert.equal((await ds.runMigrations({ transaction: 'all' })).length, 1,
+      'Somente a migration de mudança de schema deve estar pendente.')
+    const oldToken = 'c'.repeat(64)
+    const preservedUser = await new AuthService(ds).getUser(oldToken)
+    assert.equal(preservedUser?.email, 'conta-antiga@example.invalid')
+    assert.ok(await new AuthService(ds).login('conta-antiga@example.invalid', 'senha-de-teste-migracao-123'))
+    const preservedClient = await ds.query(
+      'SELECT owner_id FROM public.clients WHERE id=$1', ['cliente-legado'])
+    assert.equal(preservedClient[0].owner_id, preservedUser?.id)
+    assert.equal((await ds.query(`SELECT to_regclass('public.auth_sessions') AS table_name`))[0].table_name, null)
+    assert.equal((await ds.query(`SELECT to_regclass('auth.auth_sessions') AS table_name`))[0].table_name, 'auth.auth_sessions')
+
+    // Reverter somente em banco descartável preserva novamente os dados,
+    // antes da reversão completa das duas migrations históricas.
+    await ds.undoLastMigration({ transaction: 'all' })
+    assert.equal((await ds.query(`SELECT to_regclass('public.users') AS table_name`))[0].table_name, 'users')
+    assert.equal((await ds.query(
+      'SELECT count(*)::integer AS total FROM public.users WHERE email=$1',
+      ['conta-antiga@example.invalid']))[0].total, 1)
+    await ds.undoLastMigration({ transaction: 'all' })
+    await ds.undoLastMigration({ transaction: 'all' })
+    assert.equal((await ds.query(`SELECT to_regclass('public.users') AS table_name`))[0].table_name, null)
+
   } finally {
     if (ds.isInitialized) await ds.destroy()
   }
