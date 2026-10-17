@@ -9,7 +9,11 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "test:pricing": "node --experimental-strip-types --test tests/pricing.test.ts"
+    "test:pricing": "node --experimental-strip-types --test tests/pricing.test.ts",
+    "dev:api": "npm run dev --prefix apps/api",
+    "test:api": "npm test --prefix apps/api",
+    "typecheck:api": "npm run typecheck --prefix apps/api",
+    "build:api": "npm run build --prefix apps/api"
   },
   "dependencies": {
     "vue": "^3.5.18",

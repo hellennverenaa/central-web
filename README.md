@@ -8,7 +8,7 @@ Aplicação local e individual para organizar o lançamento de um pequeno estúd
 - CSS responsivo com paletas completas Light/Dark e `lucide-vue-next`
 - Vue reativo + `localStorage` para demonstrar fluxos sem backend
 
-**Arquitetura planejada:** Vue + Node.js/Express + TypeORM + PostgreSQL, com Docker Compose durante desenvolvimento. Supabase **não é obrigatório**. Veja [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+**Etapas 7.1–7.3:** a API Express/TypeScript usa TypeORM/PostgreSQL com migrations de domínio e de sessões versionadas em `apps/api`, além de login local por cookie HttpOnly. Ainda não há rotas de negócio ou integração com o frontend; a API não está pronta para uso público. Veja [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
 
 ## Iniciar no computador
 
@@ -21,6 +21,46 @@ npm run build
 ```
 
 `npm run build` cria a pasta `dist/` quando a checagem de tipos e o Vite terminam sem erro. Para esta alteração, `npm test`, `npm run typecheck` e `npm run build` foram executados com sucesso no workspace. `npm install` não foi necessário porque as dependências já estavam presentes; o repositório ainda não tem lockfile e uma instalação limpa requer acesso ao registro.
+
+## Backend local — etapa 7.1
+
+O backend está **isolado** em [`apps/api/`](apps/api), com instruções completas em [`apps/api/README.md`](apps/api/README.md). Para desenvolver a API, em outro terminal:
+
+```bash
+cd apps/api
+cp .env.example .env
+# Escolha uma senha local forte em DB_PASSWORD no .env
+npm install
+docker compose up -d db
+npm run dev
+```
+
+Os endpoints de verificação são `http://127.0.0.1:3333/health` (processo) e `http://127.0.0.1:3333/health/ready` (PostgreSQL). Na raiz do repositório, `npm run dev` continua iniciando somente o frontend.
+
+### Criar as tabelas (etapa 7.2)
+
+Após iniciar o Docker e atualizar a branch, em `apps/api` execute:
+
+```bash
+npm install
+npm run db:status
+npm run db:migrate
+npm run db:status
+```
+
+Atualize o DBeaver e expanda `central_dev → Esquemas → public → Tabelas`. A migration cria as **tabelas vazias**, sem importar dados do navegador. Consulte o guia completo em [`apps/api/README.md`](apps/api/README.md).
+
+### Auditoria da autenticação
+
+A API local recebeu proteção de origem nas operações mutáveis, limites de
+tentativas por IP/conta e verificação das migrations na prontidão. **Essas
+correções não significam segurança pronta para produção.** Consulte
+[`docs/REVISAO-AUTENTICACAO.md`](docs/REVISAO-AUTENTICACAO.md)
+para a análise, riscos pendentes e planejamento de biblioteca mantida.
+
+### Login local da API (etapa 7.3)
+
+Depois de `npm run db:migrate` e com PostgreSQL ativo, dentro de `apps/api` execute `npm run auth:create-owner`. A senha será solicitada sem aparecer na tela; não existe cadastro público. A API oferece login, verificação da própria sessão e logout, **mas o frontend Vue continua utilizando dados locais** e ainda não possui formulário integrado. Veja [`apps/api/README.md`](apps/api/README.md) para limites e comandos.
 
 ## Módulos
 
@@ -59,7 +99,7 @@ Use backup JSON antes de apagar ou importar dados. A ação “Restaurar modelos
 
 ## Segurança
 
-Este projeto **não tem autenticação, criptografia em repouso, backend ou sincronização**. `localStorage` não protege registros de clientes. **Não armazene dados pessoais reais, números de telefone, respostas de briefing ou dados financeiros sensíveis, nem exponha esta versão como aplicação de produção.** Os arquivos de backup não são criptografados.
+O frontend **não tem autenticação, criptografia em repouso nem sincronização**. A API tem autenticação local, mas ainda não expõe rotas de clientes e não oferece proteção de produção; não está pronta para receber dados reais de clientes. `localStorage` não protege registros de clientes. **Não armazene dados pessoais reais, números de telefone, respostas de briefing ou dados financeiros sensíveis, nem exponha esta versão como aplicação de produção.** Os arquivos de backup não são criptografados.
 
 A futura versão para uso real precisa de autenticação, autorização na API para todas as entidades, migrations, backups e critérios de privacidade (LGPD).
 

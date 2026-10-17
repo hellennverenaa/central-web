@@ -1,4 +1,4 @@
-name: Verify frontend
+name: Verify Central Web
 on:
   pull_request:
   push:
@@ -19,3 +19,42 @@ jobs:
         run: npm run typecheck
       - name: Build
         run: npm run build
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: central_test
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: central_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U central_test -d central_test"
+          --health-interval=5s --health-timeout=5s --health-retries=15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install API dependencies
+        run: npm install --prefix apps/api --no-audit --no-fund
+      - name: API typecheck
+        run: npm run typecheck:api
+      - name: API unit and health tests
+        run: npm run test:api
+      - name: Migration integration (isolated PostgreSQL)
+        run: npm run test:db --prefix apps/api
+        env:
+          TEST_DATABASE: '1'
+          NODE_ENV: test
+          DB_HOST: 127.0.0.1
+          DB_PORT: '5432'
+          DB_NAME: central_test
+          DB_USER: central_test
+          DB_PASSWORD: ci-only-password
+      - name: API build
+        run: npm run build:api
+      - name: Validate PostgreSQL Compose config
+        run: docker compose --env-file apps/api/.env.example -f apps/api/compose.yaml config --quiet

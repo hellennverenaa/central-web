@@ -14,12 +14,50 @@
 Browser Vue (Vercel) -> HTTPS -> Node/Express API (hospedagem) -> conexão privada/TLS -> PostgreSQL (hospedagem)
 DBeaver do computador -> conexão TLS/rede autorizada -> PostgreSQL.
 
+## Backend — etapa 7.1 (estrutura inicial)
+
+- API Express/TypeScript em `apps/api`, independente do Vite; comandos em [`apps/api/README.md`](../apps/api/README.md).
+- PostgreSQL local em Docker Compose (`apps/api/compose.yaml`), com volume persistente e porta vinculada a `127.0.0.1`.
+- Credenciais em `apps/api/.env` (ignorado pelo Git). Exemplo em `apps/api/.env.example`.
+- DataSource TypeORM configurado com `synchronize: false`, **com 17 entidades e migration inicial na etapa 7.2**. A criação do schema é explícita via `npm run db:migrate` (não ocorre ao iniciar a API).
+- `GET /health` confirma que o processo está ativo; `GET /health/ready` verifica a conexão com o PostgreSQL.
+- Nenhuma rota de cliente, proposta ou financeiro foi exposta. Sem autenticação, **não disponibilize esta API publicamente**. CORS não é autenticação.
+- O frontend segue usando workspace local v7. A migração de dados e a conexão à API serão tratadas depois da segurança.
+
+## Backend — etapa 7.2 (dados e relacionamentos)
+
+- Tabelas versionadas em `apps/api/src/db/migrations/`; representações TypeORM em `apps/api/src/db/entities.ts`. Não usam `synchronize` automático.
+- O banco é inicialmente **vazio**: nenhum dado de cliente, oportunidade, projeto ou pagamento é importado nesta etapa.
+- `users` será o titular dos registros no modelo de autorização futuro. Cada tabela de domínio tem `owner_id`, com referências compostas por titular para bloquear vínculos cruzados indevidos.
+- Dinheiro previsto (`project_installments`) fica separado de recebimentos/saídas reais (`transactions`). `installment_receipts` aceita somente transação de **entrada** vinculada ao mesmo projeto/titular, e cada entrada pode estar associada a no máximo uma parcela.
+- Valores monetários: `NUMERIC(14,2)`, evitando arredondamento de ponto flutuante no banco. JSONB armazena templates e snapshots de briefing conforme o workspace v7.
+- IDs do domínio são texto para acolher tanto UUIDs do frontend quanto IDs fixos dos modelos ilustrativos; id do titular é UUID.
+- Migrar `central_dev` via `npm run db:migrate` e conferir no DBeaver `public → Tabelas`. Não use `db:revert:test` contra `central_dev`.
+- Ainda não há autenticação ou CRUD na API: a segurança é implementada em 7.3 antes de conectar o frontend na 7.4.
+
+## Backend — etapa 7.3 (autenticação local)
+
+- `users.password_hash` recebe senha derivada por scrypt e sal individual; o primeiro titular é criado via `npm run auth:create-owner` com senha oculta. Não há rota pública para inscrição.
+- Migration `AuthSessions1792200001000` cria `auth_sessions`, com SHA-256 do token (nunca o token puro), referência a `users`, data de criação e expiração.
+- `POST /auth/login` cria sessão e cookie HttpOnly + SameSite Strict; `GET /auth/me` consulta somente o próprio ID e e-mail; `POST /auth/logout` revoga a sessão.
+- Requisições de login/logout exigem cabeçalho Origin exato, com CORS restrito. Rate limiter por IP funciona apenas em memória local, não é defesa distribuída para produção.
+- Autorização por titular nas futuras rotas de domínio e publicação segura com TLS precisam ser implementadas antes de conectar clientes, projetos ou dados financeiros.
+- Não alterar o `localStorage` do frontend nesta etapa. Os testes usam apenas usuários fictícios em banco PostgreSQL temporário.
+
+## Organização dos schemas e identidade futura
+
+- `central_dev` é o banco; `public` é o schema padrão para tabelas do domínio e não significa que são abertas à internet.
+- `auth.users` e `auth.auth_sessions` ficam no schema `auth` por uma migration **incremental e não destrutiva** (`1792200002000-SeparateAuthSchema`). Registros e chaves estrangeiras são preservados pelo `ALTER TABLE ... SET SCHEMA`; a tabela `public.schema_migrations` permanece no schema padrão.
+- Senhas são armazenadas como **hashes scrypt com salt**, não criptografia reversível; sessões armazenam exclusivamente hashes dos tokens.
+- Schemas não garantem isolamento de acesso sozinhos. Autorização nas rotas, permissões SQL com mínimo privilégio e testes de acesso indevido ainda são necessários.
+- A API atual é de **gestão interna do estúdio** e não deve se tornar automaticamente o provedor de autenticação de aplicações dos clientes. Uma identidade compartilhada futura exigiria desenho de serviço separado com OAuth2/OIDC, clientes isolados e controles de segurança adicionais.
+
 ## Limites do protótipo v0.2
 
-- Dados e modelos persistidos apenas em `localStorage`, sem backend.
+- Dados e modelos persistidos apenas em `localStorage`; a API desta etapa não armazena registros de domínio.
 - Não usar informações pessoais de clientes reais ou movimentações financeiras sensíveis.
 - Catálogo contém **simulações ilustrativas**, não preços de mercado.
-- Schema local v3. Backups v1, v2 e v3 são aceitos; migração preserva registros compatíveis e templates.
+- Schema local v7. Backups v1 até v7 são aceitos, com migração que preserva registros compatíveis e templates.
 - IDs conectam oportunidade a serviço/projeto, projeto a serviço/oportunidade de origem e tarefas/transações ao projeto.
 - Ao restaurar modelos, dados locais são apagados; antes faça backup.
 
@@ -35,7 +73,7 @@ DBeaver do computador -> conexão TLS/rede autorizada -> PostgreSQL.
 
 ## Build no GitHub Actions
 
-Workflow `.github/workflows/ci.yml` roda checagem de tipos + build em push/PR. Assim que gerar o `package-lock.json` em ambiente online, versioná-lo e substituir `npm install` por `npm ci` no workflow, para builds reproduzíveis.
+O CI verifica frontend e API em jobs separados. O frontend instala dependências via `npm ci`; inicialmente, a API usa `npm install` até que seu lockfile seja gerado e versionado em ambiente com registro npm. Os testes da etapa 7.1 não exigem conexão a banco real.
 
 ## Padrões do TypeORM definidos
 
