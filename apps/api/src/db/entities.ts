@@ -22,15 +22,15 @@ const json = (name: string): EntitySchemaColumnOptions => ({ type: 'jsonb', name
 const boolean = (name: string): EntitySchemaColumnOptions => ({ type: 'boolean', name })
 const integer = (name: string): EntitySchemaColumnOptions => ({ type: 'integer', name })
 
-function schema(name: string, tableName: string, columns: Columns): EntitySchema {
-  return new EntitySchema({ name, tableName, columns })
+function schema(name: string, tableName: string, columns: Columns, namespace?: string): EntitySchema {
+  return new EntitySchema({ name, tableName, columns, ...(namespace ? { schema: namespace } : {}) })
 }
 
 export const UserEntity = schema('User', 'users', {
   id: { type: 'uuid', primary: true, generated: 'uuid' },
   email: text(), passwordHash: text('password_hash', true),
   createdAt: timestamp('created_at'),
-})
+}, 'auth')
 export const ClientEntity = schema('Client', 'clients', {
   id: pk, ownerId: owner, name: text(), contact: text(), notes: text(),
   createdAt: timestamp('created_at'),
