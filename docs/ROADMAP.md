@@ -34,6 +34,9 @@
 - [x] **7.3 (fundação local):** primeiro titular criado por CLI, hash scrypt, sessão opaca em cookie HttpOnly, login/me/logout, validação de origem e rate limiter em memória, com testes reais no PostgreSQL.
 - [x] **Organização PostgreSQL:** migration incremental que move `users` e `auth_sessions` para schema `auth`, sem alterar as referências nem o frontend.
 - [ ] **Identidade para produtos de clientes:** decisão arquitetural independente; avaliar provedor OIDC/OAuth2 e isolamento por aplicação somente se existir demanda real.
+- [x] **Auditoria de login local:** origem obrigatória em mutações, limites por conta/IP e readiness de migrations; testes e plano em [`REVISAO-AUTENTICACAO.md`](REVISAO-AUTENTICACAO.md).
+- [ ] **Biblioteca de autenticação para produção:** avaliar Better Auth em banco descartável, preservando IDs UUID dos titulares e contas existentes antes de integrar o frontend.
+- [ ] **Menor privilégio no banco:** separar a conta de migrations da role de runtime da API.
 - [ ] **7.3 (endurecimento):** autorização por titular em cada futura rota de dados, TLS/deploy seguro, limitação de tentativas distribuída, trilhas de auditoria e revisão antes de permitir dados reais.
 - [ ] **7.4:** conectar frontend com loading/erros e migrar registros do localStorage de forma controlada.
 
