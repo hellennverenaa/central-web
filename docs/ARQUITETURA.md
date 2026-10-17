@@ -44,6 +44,14 @@ DBeaver do computador -> conexão TLS/rede autorizada -> PostgreSQL.
 - Autorização por titular nas futuras rotas de domínio e publicação segura com TLS precisam ser implementadas antes de conectar clientes, projetos ou dados financeiros.
 - Não alterar o `localStorage` do frontend nesta etapa. Os testes usam apenas usuários fictícios em banco PostgreSQL temporário.
 
+## Organização dos schemas e identidade futura
+
+- `central_dev` é o banco; `public` é o schema padrão para tabelas do domínio e não significa que são abertas à internet.
+- `auth.users` e `auth.auth_sessions` ficam no schema `auth` por uma migration **incremental e não destrutiva** (`1792200002000-SeparateAuthSchema`). Registros e chaves estrangeiras são preservados pelo `ALTER TABLE ... SET SCHEMA`; a tabela `public.schema_migrations` permanece no schema padrão.
+- Senhas são armazenadas como **hashes scrypt com salt**, não criptografia reversível; sessões armazenam exclusivamente hashes dos tokens.
+- Schemas não garantem isolamento de acesso sozinhos. Autorização nas rotas, permissões SQL com mínimo privilégio e testes de acesso indevido ainda são necessários.
+- A API atual é de **gestão interna do estúdio** e não deve se tornar automaticamente o provedor de autenticação de aplicações dos clientes. Uma identidade compartilhada futura exigiria desenho de serviço separado com OAuth2/OIDC, clientes isolados e controles de segurança adicionais.
+
 ## Limites do protótipo v0.2
 
 - Dados e modelos persistidos apenas em `localStorage`; a API desta etapa não armazena registros de domínio.
