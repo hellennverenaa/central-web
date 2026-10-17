@@ -16,6 +16,7 @@ test('API usa localhost por padrão e exige senha explícita do banco', () => {
 test('variáveis inválidas são rejeitadas sem exibir o valor da senha', () => {
   assert.throws(() => parseEnv({}), /DB_PASSWORD/)
   assert.throws(() => parseEnv({ ...minimal, API_PORT: '0' }), /API_PORT/)
+  assert.throws(() => parseEnv({ ...minimal, API_HOST: '0.0.0.0' }), /API_HOST/)
   assert.throws(() => parseEnv({ ...minimal, WEB_ORIGIN: 'não é uma URL' }), /WEB_ORIGIN/)
   assert.throws(() => parseEnv({ ...minimal, DB_PORT: 'abc' }), /DB_PORT/)
 })
