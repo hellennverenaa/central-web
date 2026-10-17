@@ -19,10 +19,21 @@ DBeaver do computador -> conexão TLS/rede autorizada -> PostgreSQL.
 - API Express/TypeScript em `apps/api`, independente do Vite; comandos em [`apps/api/README.md`](../apps/api/README.md).
 - PostgreSQL local em Docker Compose (`apps/api/compose.yaml`), com volume persistente e porta vinculada a `127.0.0.1`.
 - Credenciais em `apps/api/.env` (ignorado pelo Git). Exemplo em `apps/api/.env.example`.
-- DataSource TypeORM configurado com `synchronize: false`, **sem entidades e migrations** até a etapa 7.2.
+- DataSource TypeORM configurado com `synchronize: false`, **com 17 entidades e migration inicial na etapa 7.2**. A criação do schema é explícita via `npm run db:migrate` (não ocorre ao iniciar a API).
 - `GET /health` confirma que o processo está ativo; `GET /health/ready` verifica a conexão com o PostgreSQL.
 - Nenhuma rota de cliente, proposta ou financeiro foi exposta. Sem autenticação, **não disponibilize esta API publicamente**. CORS não é autenticação.
 - O frontend segue usando workspace local v7. A migração de dados e a conexão à API serão tratadas depois da segurança.
+
+## Backend — etapa 7.2 (dados e relacionamentos)
+
+- Tabelas versionadas em `apps/api/src/db/migrations/`; representações TypeORM em `apps/api/src/db/entities.ts`. Não usam `synchronize` automático.
+- O banco é inicialmente **vazio**: nenhum dado de cliente, oportunidade, projeto ou pagamento é importado nesta etapa.
+- `users` será o titular dos registros no modelo de autorização futuro. Cada tabela de domínio tem `owner_id`, com referências compostas por titular para bloquear vínculos cruzados indevidos.
+- Dinheiro previsto (`project_installments`) fica separado de recebimentos/saídas reais (`transactions`). `installment_receipts` aceita somente transação de **entrada** vinculada ao mesmo projeto/titular, e cada entrada pode estar associada a no máximo uma parcela.
+- Valores monetários: `NUMERIC(14,2)`, evitando arredondamento de ponto flutuante no banco. JSONB armazena templates e snapshots de briefing conforme o workspace v7.
+- IDs do domínio são texto para acolher tanto UUIDs do frontend quanto IDs fixos dos modelos ilustrativos; id do titular é UUID.
+- Migrar `central_dev` via `npm run db:migrate` e conferir no DBeaver `public → Tabelas`. Não use `db:revert:test` contra `central_dev`.
+- Ainda não há autenticação ou CRUD na API: a segurança é implementada em 7.3 antes de conectar o frontend na 7.4.
 
 ## Limites do protótipo v0.2
 
