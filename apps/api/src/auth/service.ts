@@ -13,26 +13,21 @@ interface UserRow extends AuthUser { password_hash: string | null }
  * Nenhuma tabela de domínio é disponibilizada nesta etapa.
  */
 export class AuthService {
-  constructor(private readonly db: Pick<DataSource, 'query'>) {}
+  constructor(private readonly db: Pick<DataSource, 'query' | 'transaction'>) {}
 
   async createFirstOwner(email: string, password: string): Promise<AuthUser> {
     const normalized = email.trim().toLowerCase()
     const hash = await hashPassword(password)
     // Protege duas execuções paralelas do assistente de criação de titular.
-    await this.db.query('BEGIN')
-    try {
-      await this.db.query('SELECT pg_advisory_xact_lock($1)', [7142026])
-      const count = await this.db.query('SELECT count(*)::integer AS total FROM users') as Array<{ total: number }>
+    return this.db.transaction(async manager => {
+      await manager.query('SELECT pg_advisory_xact_lock($1)', [7142026])
+      const count = await manager.query('SELECT count(*)::integer AS total FROM users') as Array<{ total: number }>
       if (count[0]?.total !== 0) throw new Error('Já existe um titular. O cadastro público está desabilitado.')
-      const rows = await this.db.query(
+      const rows = await manager.query(
         'INSERT INTO users(email,password_hash) VALUES($1,$2) RETURNING id,email',
         [normalized, hash]) as AuthUser[]
-      await this.db.query('COMMIT')
       return rows[0]!
-    } catch (error) {
-      await this.db.query('ROLLBACK')
-      throw error
-    }
+    })
   }
 
   async login(email: string, password: string): Promise<{ user: AuthUser; token: string } | null> {
