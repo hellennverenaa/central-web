@@ -15,7 +15,8 @@
     "db:status": "tsx src/db/migrate.ts status",
     "db:migrate": "tsx src/db/migrate.ts up",
     "db:revert:test": "tsx src/db/migrate.ts down",
-    "test:db": "tsx --test tests/database.integration.test.ts"
+    "test:db": "tsx --test tests/database.integration.test.ts",
+    "auth:create-owner": "tsx src/auth/createOwner.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
