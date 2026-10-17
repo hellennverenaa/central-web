@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { parseEnv } from '../src/config/env.js'
 import { createDataSource, createReadinessProbe } from '../src/db/dataSource.js'
+import { UserEntity } from '../src/db/entities.js'
 
 const env = parseEnv({ DB_PASSWORD: 'senha-apenas-para-teste' })
 
@@ -13,8 +14,7 @@ test('TypeORM só registra entidades e migrations, sem alterar tabelas automatic
   assert.equal(dataSource.options.entities?.length, 17)
   assert.equal(dataSource.options.migrations?.length, 3)
   assert.equal(dataSource.options.migrationsTableName, 'schema_migrations')
-  const users = dataSource.options.entities?.find(item => 'options' in item && item.options?.name === 'User')
-  assert.ok(users && 'options' in users && users.options?.schema === 'auth')
+  assert.equal(UserEntity.options.schema, 'auth')
   assert.equal(dataSource.isInitialized, false)
 })
 
