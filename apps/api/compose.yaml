@@ -1,0 +1,22 @@
+name: central-web-dev
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:?Defina DB_USER no arquivo .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no arquivo .env}
+      POSTGRES_DB: ${DB_NAME:?Defina DB_NAME no arquivo .env}
+    ports:
+      # Restrito ao computador: nunca publicar PostgreSQL em 0.0.0.0.
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
+    volumes:
+      - central_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  central_postgres:
