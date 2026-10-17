@@ -1,6 +1,6 @@
-# Central Web · API — etapas 7.1 e 7.2
+# Central Web · API — etapas 7.1, 7.2 e 7.3
 
-Backend **local e isolado** do frontend. A etapa 7.2 acrescenta tabelas do domínio e migrations, mas **ainda não há login, CRUD, endpoints de clientes ou integração com o `localStorage`**. Não hospede esta API publicamente nem insira informações reais ou dados pessoais de clientes.
+Backend **local e isolado** do frontend. A etapa 7.2 acrescenta tabelas do domínio e migrations; a etapa 7.3 acrescenta login e sessões locais. **Ainda não há CRUD de clientes nem integração com o `localStorage`.** Não hospede esta API publicamente nem insira informações reais ou dados pessoais de clientes.
 
 ## Requisitos
 
@@ -68,6 +68,38 @@ Os IDs de domínio são `TEXT` para aceitar tanto novos UUIDs como identificador
 
 O GitHub Actions já usa um PostgreSQL **temporário** para aplicar/reverter a migration e verificar os relacionamentos. Para repetir localmente, **crie outro banco chamado `central_test`** e use variáveis `NODE_ENV=test`, `DB_NAME=central_test`, `TEST_DATABASE=1` e suas credenciais locais de teste. **Nunca rode `test:db` no banco `central_dev`.**
 
+## Etapa 7.3 — login e sessões locais
+
+Execute `npm run db:migrate` antes de cadastrar o titular. A migration adiciona a tabela `auth_sessions` e não cria usuários automaticamente.
+
+```bash
+# Dentro de apps/api, com .env configurado e PostgreSQL iniciado
+npm run db:migrate
+npm run db:status
+npm run auth:create-owner
+```
+
+O cadastro pergunta e-mail e senha **diretamente no terminal**. A senha não aparece, não é passada por argumento e não deve ser compartilhada por prints ou logs. Use pelo menos **12 caracteres**. Só é permitido criar o **primeiro titular** por esse comando; cadastro público está desabilitado.
+
+Reinicie o servidor: `npm run dev`.
+
+| Endpoint | Método | Comportamento |
+| --- | --- | --- |
+| `/health` | GET | Disponibilidade HTTP sem login |
+| `/health/ready` | GET | Conexão com PostgreSQL |
+| `/auth/login` | POST | JSON com e-mail e senha; cabeçalho `Origin` deve coincidir com `WEB_ORIGIN` |
+| `/auth/me` | GET | Devolve somente ID/e-mail quando a sessão é válida; sem cookie responde `401` |
+| `/auth/logout` | POST | Revoga a sessão no banco e remove o cookie; valida `Origin` |
+
+- Senhas: scrypt assíncrono com sal aleatório; senha em claro não vai para o banco.
+- Sessões: token opaco e aleatório; **somente o hash SHA-256** fica no PostgreSQL. Cookie HttpOnly, SameSite=Strict, Path=/, expira em 7 dias.
+- Restrições: CORS com credenciais só para `WEB_ORIGIN`, exigência de Origin para POST e limite simples por IP em memória para login.
+- **Ambiente local apenas.** Rate limiting em memória e HTTP local não substituem TLS, controles distribuídos, auditoria e autorização por titular nas futuras rotas de projetos e clientes.
+- **Frontend continua sem login:** a tela Vue ainda usa dados locais. A etapa 7.4 vai integrar API/frontend com proxy da mesma origem para não conflitar os cookies Strict entre `localhost` e `127.0.0.1`.
+- `GET /auth/me` sem cookie deve devolver `401`; isso é um bloqueio esperado. A suíte de integração usa banco temporário e contas fictícias para verificar login, expiração e logout.
+
+**Não coloque senhas em comandos `curl` com argumentos visíveis ou que fiquem gravados no histórico do terminal.**
+
 ## Verificações
 
 - `http://127.0.0.1:3333/health` — `200 {"status":"ok"}` indica processo HTTP ativo.
@@ -85,8 +117,7 @@ vinculada a `127.0.0.1:5433`, não à rede inteira.
 ## Próximas subetapas
 
 **7.2:** schema e migrations iniciais implementadas, pendente execução/validação no PostgreSQL local via DBeaver;
-**7.3:** autenticação, sessões/cookies HttpOnly, autorização por titular, rate limiting
-e testes de acesso proibido; **7.4:** migração controlada do frontend para a API.
+**7.3:** autenticação e sessões locais prontas no código; autorização por titular de endpoints de domínio e endurecimento para produção continuam pendentes; **7.4:** conexão protegida do frontend e migração controlada dos registros.
 
 A configuração do TypeORM usa `synchronize: false` para impedir criação/destruição automática de tabelas. Apenas `npm run db:migrate` aplica mudanças de esquema. Nunca coloque credenciais no código nem exponha portas sem os
 controles necessários.
