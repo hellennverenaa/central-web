@@ -35,6 +35,15 @@ DBeaver do computador -> conexão TLS/rede autorizada -> PostgreSQL.
 - Migrar `central_dev` via `npm run db:migrate` e conferir no DBeaver `public → Tabelas`. Não use `db:revert:test` contra `central_dev`.
 - Ainda não há autenticação ou CRUD na API: a segurança é implementada em 7.3 antes de conectar o frontend na 7.4.
 
+## Backend — etapa 7.3 (autenticação local)
+
+- `users.password_hash` recebe senha derivada por scrypt e sal individual; o primeiro titular é criado via `npm run auth:create-owner` com senha oculta. Não há rota pública para inscrição.
+- Migration `AuthSessions1792200001000` cria `auth_sessions`, com SHA-256 do token (nunca o token puro), referência a `users`, data de criação e expiração.
+- `POST /auth/login` cria sessão e cookie HttpOnly + SameSite Strict; `GET /auth/me` consulta somente o próprio ID e e-mail; `POST /auth/logout` revoga a sessão.
+- Requisições de login/logout exigem cabeçalho Origin exato, com CORS restrito. Rate limiter por IP funciona apenas em memória local, não é defesa distribuída para produção.
+- Autorização por titular nas futuras rotas de domínio e publicação segura com TLS precisam ser implementadas antes de conectar clientes, projetos ou dados financeiros.
+- Não alterar o `localStorage` do frontend nesta etapa. Os testes usam apenas usuários fictícios em banco PostgreSQL temporário.
+
 ## Limites do protótipo v0.2
 
 - Dados e modelos persistidos apenas em `localStorage`; a API desta etapa não armazena registros de domínio.
