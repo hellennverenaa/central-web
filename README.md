@@ -8,7 +8,7 @@ Aplicação local e individual para organizar o lançamento de um pequeno estúd
 - CSS responsivo com paletas completas Light/Dark e `lucide-vue-next`
 - Vue reativo + `localStorage` para demonstrar fluxos sem backend
 
-**Etapas 7.1–7.2:** a API Express/TypeScript usa TypeORM/PostgreSQL e possui migration de domínio versionada em `apps/api`, com Docker Compose local. Ainda não há rotas de negócio, autenticação ou integração com o frontend. Veja [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+**Etapas 7.1–7.3:** a API Express/TypeScript usa TypeORM/PostgreSQL com migrations de domínio e de sessões versionadas em `apps/api`, além de login local por cookie HttpOnly. Ainda não há rotas de negócio ou integração com o frontend; a API não está pronta para uso público. Veja [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
 
 ## Iniciar no computador
 
