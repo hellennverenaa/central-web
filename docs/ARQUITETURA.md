@@ -14,12 +14,22 @@
 Browser Vue (Vercel) -> HTTPS -> Node/Express API (hospedagem) -> conexão privada/TLS -> PostgreSQL (hospedagem)
 DBeaver do computador -> conexão TLS/rede autorizada -> PostgreSQL.
 
+## Backend — etapa 7.1 (estrutura inicial)
+
+- API Express/TypeScript em `apps/api`, independente do Vite; comandos em [`apps/api/README.md`](../apps/api/README.md).
+- PostgreSQL local em Docker Compose (`apps/api/compose.yaml`), com volume persistente e porta vinculada a `127.0.0.1`.
+- Credenciais em `apps/api/.env` (ignorado pelo Git). Exemplo em `apps/api/.env.example`.
+- DataSource TypeORM configurado com `synchronize: false`, **sem entidades e migrations** até a etapa 7.2.
+- `GET /health` confirma que o processo está ativo; `GET /health/ready` verifica a conexão com o PostgreSQL.
+- Nenhuma rota de cliente, proposta ou financeiro foi exposta. Sem autenticação, **não disponibilize esta API publicamente**. CORS não é autenticação.
+- O frontend segue usando workspace local v7. A migração de dados e a conexão à API serão tratadas depois da segurança.
+
 ## Limites do protótipo v0.2
 
-- Dados e modelos persistidos apenas em `localStorage`, sem backend.
+- Dados e modelos persistidos apenas em `localStorage`; a API desta etapa não armazena registros de domínio.
 - Não usar informações pessoais de clientes reais ou movimentações financeiras sensíveis.
 - Catálogo contém **simulações ilustrativas**, não preços de mercado.
-- Schema local v3. Backups v1, v2 e v3 são aceitos; migração preserva registros compatíveis e templates.
+- Schema local v7. Backups v1 até v7 são aceitos, com migração que preserva registros compatíveis e templates.
 - IDs conectam oportunidade a serviço/projeto, projeto a serviço/oportunidade de origem e tarefas/transações ao projeto.
 - Ao restaurar modelos, dados locais são apagados; antes faça backup.
 
@@ -35,7 +45,7 @@ DBeaver do computador -> conexão TLS/rede autorizada -> PostgreSQL.
 
 ## Build no GitHub Actions
 
-Workflow `.github/workflows/ci.yml` roda checagem de tipos + build em push/PR. Assim que gerar o `package-lock.json` em ambiente online, versioná-lo e substituir `npm install` por `npm ci` no workflow, para builds reproduzíveis.
+O CI verifica frontend e API em jobs separados. O frontend instala dependências via `npm ci`; inicialmente, a API usa `npm install` até que seu lockfile seja gerado e versionado em ambiente com registro npm. Os testes da etapa 7.1 não exigem conexão a banco real.
 
 ## Padrões do TypeORM definidos
 
