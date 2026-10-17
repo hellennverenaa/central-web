@@ -103,6 +103,22 @@ um provedor de identidade **separado** (possivelmente OIDC/OAuth 2.0), com usuá
 aplicações, ambientes e permissões isolados — não reutilizar esta API administrativa
 como autenticação de clientes.
 
+## Revisão de segurança da API local
+
+Leia [`docs/REVISAO-AUTENTICACAO.md`](../../../docs/REVISAO-AUTENTICACAO.md)
+antes de conectar a tela de login à aplicação.
+
+A API agora exige o cabeçalho `Origin` aprovado em toda operação mutável,
+limita tentativas de login por IP e conta e só retorna `ready` quando o
+PostgreSQL estiver acessível **e não houver migrations pendentes**. Assim,
+`/health` pode retornar `ok` com `/health/ready` em 503; nesse caso,
+verifique `npm run db:status` e execute `npm run db:migrate` se necessário.
+
+A implementação de login continua **exclusivamente local**, não é certificada
+para produção. O parecer recomenda estudar uma biblioteca mantida, separar o
+usuário de runtime do banco e implementar autorização por titular nas rotas
+antes de permitir dados reais.
+
 ## Etapa 7.3 — login e sessões locais
 
 Execute `npm run db:migrate` antes de cadastrar o titular. A migration de sessões adiciona a tabela `auth_sessions` e a migration seguinte a move para `auth.auth_sessions`; nenhuma delas cria usuários automaticamente.
