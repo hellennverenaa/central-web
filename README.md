@@ -50,6 +50,14 @@ npm run db:status
 
 Atualize o DBeaver e expanda `central_dev → Esquemas → public → Tabelas`. A migration cria as **tabelas vazias**, sem importar dados do navegador. Consulte o guia completo em [`apps/api/README.md`](apps/api/README.md).
 
+### Auditoria da autenticação
+
+A API local recebeu proteção de origem nas operações mutáveis, limites de
+tentativas por IP/conta e verificação das migrations na prontidão. **Essas
+correções não significam segurança pronta para produção.** Consulte
+[`docs/REVISAO-AUTENTICACAO.md`](docs/REVISAO-AUTENTICACAO.md)
+para a análise, riscos pendentes e planejamento de biblioteca mantida.
+
 ### Login local da API (etapa 7.3)
 
 Depois de `npm run db:migrate` e com PostgreSQL ativo, dentro de `apps/api` execute `npm run auth:create-owner`. A senha será solicitada sem aparecer na tela; não existe cadastro público. A API oferece login, verificação da própria sessão e logout, **mas o frontend Vue continua utilizando dados locais** e ainda não possui formulário integrado. Veja [`apps/api/README.md`](apps/api/README.md) para limites e comandos.
