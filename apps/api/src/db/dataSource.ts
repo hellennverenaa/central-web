@@ -33,6 +33,9 @@ export function createReadinessProbe(dataSource: DataSource): () => Promise<bool
         connecting ??= dataSource.initialize().finally(() => { connecting = undefined })
         await connecting
       }
+      // Uma conexão viva não significa que a estrutura de auth já foi migrada.
+      // Evita sinalizar "ready" enquanto faltam tabelas obrigatórias.
+      if (await dataSource.showMigrations()) return false
       await dataSource.query('SELECT 1')
       return true
     } catch {
