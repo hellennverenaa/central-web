@@ -4,6 +4,7 @@ import type { ApiEnv } from '../config/env.js'
 import { databaseEntities } from './entities.js'
 import { InitialDomainSchema1792200000000 } from './migrations/1792200000000-InitialDomainSchema.js'
 import { AuthSessions1792200001000 } from './migrations/1792200001000-AuthSessions.js'
+import { SeparateAuthSchema1792200002000 } from './migrations/1792200002000-SeparateAuthSchema.js'
 
 /** Etapa 7.2: entidades registradas; executar migrations apenas pelo comando explícito. */
 export function createDataSource(env: ApiEnv): DataSource {
@@ -18,7 +19,7 @@ export function createDataSource(env: ApiEnv): DataSource {
     migrationsRun: false,
     logging: false,
     entities: databaseEntities,
-    migrations: [InitialDomainSchema1792200000000, AuthSessions1792200001000],
+    migrations: [InitialDomainSchema1792200000000, AuthSessions1792200001000, SeparateAuthSchema1792200002000],
     migrationsTableName: 'schema_migrations',
     extra: { connectionTimeoutMillis: 3000 },
   })
