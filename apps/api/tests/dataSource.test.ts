@@ -11,8 +11,10 @@ test('TypeORM só registra entidades e migrations, sem alterar tabelas automatic
   assert.equal(dataSource.options.synchronize, false)
   assert.equal(dataSource.options.migrationsRun, false)
   assert.equal(dataSource.options.entities?.length, 17)
-  assert.equal(dataSource.options.migrations?.length, 2)
+  assert.equal(dataSource.options.migrations?.length, 3)
   assert.equal(dataSource.options.migrationsTableName, 'schema_migrations')
+  const users = dataSource.options.entities?.find(item => 'options' in item && item.options?.name === 'User')
+  assert.ok(users && 'options' in users && users.options?.schema === 'auth')
   assert.equal(dataSource.isInitialized, false)
 })
 
