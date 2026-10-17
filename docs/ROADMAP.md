@@ -32,6 +32,8 @@
 - [x] **7.2 (código):** 17 entidades TypeORM, índices, constraints e migration inicial versionada, sem sincronização automática. CI testa PostgreSQL temporário.
 - [ ] **7.2 (QA local):** executar migration na instância `central_dev` e validar no DBeaver as tabelas e relacionamentos antes de seguir para autenticação.
 - [x] **7.3 (fundação local):** primeiro titular criado por CLI, hash scrypt, sessão opaca em cookie HttpOnly, login/me/logout, validação de origem e rate limiter em memória, com testes reais no PostgreSQL.
+- [x] **Organização PostgreSQL:** migration incremental que move `users` e `auth_sessions` para schema `auth`, sem alterar as referências nem o frontend.
+- [ ] **Identidade para produtos de clientes:** decisão arquitetural independente; avaliar provedor OIDC/OAuth2 e isolamento por aplicação somente se existir demanda real.
 - [ ] **7.3 (endurecimento):** autorização por titular em cada futura rota de dados, TLS/deploy seguro, limitação de tentativas distribuída, trilhas de auditoria e revisão antes de permitir dados reais.
 - [ ] **7.4:** conectar frontend com loading/erros e migrar registros do localStorage de forma controlada.
 
