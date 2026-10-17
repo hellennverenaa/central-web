@@ -8,7 +8,7 @@ Aplicação local e individual para organizar o lançamento de um pequeno estúd
 - CSS responsivo com paletas completas Light/Dark e `lucide-vue-next`
 - Vue reativo + `localStorage` para demonstrar fluxos sem backend
 
-**Etapa 7.1 em andamento:** a estrutura da API Node/Express/TypeScript + TypeORM/PostgreSQL está em `apps/api`, com Docker Compose local. Ainda não há rotas de negócio nem integração com o frontend. Veja [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+**Etapas 7.1–7.2:** a API Express/TypeScript usa TypeORM/PostgreSQL e possui migration de domínio versionada em `apps/api`, com Docker Compose local. Ainda não há rotas de negócio, autenticação ou integração com o frontend. Veja [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
 
 ## Iniciar no computador
 
@@ -36,6 +36,19 @@ npm run dev
 ```
 
 Os endpoints de verificação são `http://127.0.0.1:3333/health` (processo) e `http://127.0.0.1:3333/health/ready` (PostgreSQL). Na raiz do repositório, `npm run dev` continua iniciando somente o frontend.
+
+### Criar as tabelas (etapa 7.2)
+
+Após iniciar o Docker e atualizar a branch, em `apps/api` execute:
+
+```bash
+npm install
+npm run db:status
+npm run db:migrate
+npm run db:status
+```
+
+Atualize o DBeaver e expanda `central_dev → Esquemas → public → Tabelas`. A migration cria as **tabelas vazias**, sem importar dados do navegador. Consulte o guia completo em [`apps/api/README.md`](apps/api/README.md).
 
 ## Módulos
 
