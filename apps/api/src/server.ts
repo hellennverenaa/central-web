@@ -2,6 +2,7 @@ import 'reflect-metadata'
 import { createApp } from './app.js'
 import { parseEnv } from './config/env.js'
 import { createDataSource, createReadinessProbe } from './db/dataSource.js'
+import { AuthService } from './auth/service.js'
 
 async function main() {
   const env = parseEnv(process.env)
@@ -13,6 +14,8 @@ async function main() {
   const app = createApp({
     webOrigin: env.WEB_ORIGIN,
     isDatabaseReady: createReadinessProbe(dataSource),
+    auth: new AuthService(dataSource),
+    secureCookies: env.NODE_ENV === 'production',
   })
 
   const server = app.listen(env.API_PORT, env.API_HOST, () => {
